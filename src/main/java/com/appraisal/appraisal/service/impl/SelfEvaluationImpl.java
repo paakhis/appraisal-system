@@ -1,5 +1,9 @@
 package com.appraisal.appraisal.service.impl;
 
+import com.appraisal.appraisal.dtos.SelfEvaluationRequest;
+import com.appraisal.appraisal.dtos.SelfEvaluationResponse;
+import com.appraisal.appraisal.entity.AppraisalCycle;
+import com.appraisal.appraisal.entity.SelfEvaluation;
 import com.appraisal.appraisal.entity.User;
 import com.appraisal.appraisal.exception.ResourceNotFoundException;
 import com.appraisal.appraisal.mapper.SelfEvaluationMapper;
@@ -82,6 +86,11 @@ public class SelfEvaluationImpl implements SelfEvaluationService {
         return selfEvaluationMapper.toResponse(
                 savedSelfEvaluation);
     }
+
+//    @Override
+//    public SelfEvaluationResponse createSelfEvaluation(SelfEvaluationRequest request) {
+//        return null;
+//    }
 
     @Override
     public List<SelfEvaluationResponse>
