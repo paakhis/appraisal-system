@@ -30,4 +30,5 @@ public class GoalsResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+    //due date, note, email
 }
