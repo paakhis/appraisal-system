@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.dtos;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -14,5 +15,7 @@ public class NotificationResponse {
     private String message;
     private String type;
     private Boolean isRead;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 }

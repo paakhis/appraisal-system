@@ -6,24 +6,35 @@ import com.appraisal.appraisal.entity.Appraisal;
 
 public class AppraisalMapper {
 
-    public static Appraisal toEntity(AppraisalRequest request) {
-        Appraisal appraisal = new Appraisal();
-        appraisal.setEmployeeId(request.getEmployeeId());
-        appraisal.setCycleId(request.getCycleId());
-        return appraisal;
-    }
-
     public static AppraisalResponse toResponse(Appraisal appraisal) {
-        return new AppraisalResponse(
-                appraisal.getId(),
-                appraisal.getEmployeeId(),
-                appraisal.getCycleId(),
-                appraisal.getSelfRating(),
-                appraisal.getManagerRating(),
-                appraisal.getFinalComment(),
-                appraisal.getStatus(),
-                appraisal.getCreatedAt(),
-                appraisal.getUpdatedAt()
-        );
+        if (appraisal == null) {
+            return null;
+        }
+
+        AppraisalResponse response = new AppraisalResponse();
+        response.setId(appraisal.getId());
+        response.setSelfRating(appraisal.getSelfRating());
+        response.setManagerRating(appraisal.getManagerRating());
+        response.setFinalComment(appraisal.getFinalComment());
+        response.setStatus(appraisal.getStatus());
+        response.setCreatedAt(appraisal.getCreatedAt());
+        response.setUpdatedAt(appraisal.getUpdatedAt());
+
+        if (appraisal.getEmployee() != null) {
+            response.setEmployeeId(appraisal.getEmployee().getId());
+            response.setEmployeeName(appraisal.getEmployee().getName());
+        }
+
+        if (appraisal.getManager() != null) {
+            response.setManagerId(appraisal.getManager().getId());
+            response.setManagerName(appraisal.getManager().getName());
+        }
+
+        if (appraisal.getCycle() != null) {
+            response.setCycleId(appraisal.getCycle().getId());
+            response.setCycleName(appraisal.getCycle().getName());
+        }
+
+        return response;
     }
 }

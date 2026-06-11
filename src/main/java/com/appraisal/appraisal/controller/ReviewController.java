@@ -3,7 +3,10 @@ package com.appraisal.appraisal.controller;
 import com.appraisal.appraisal.dtos.ReviewRequest;
 import com.appraisal.appraisal.dtos.ReviewResponse;
 import com.appraisal.appraisal.service.ReviewService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,17 +19,27 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @PostMapping
-    public ReviewResponse create(@RequestBody ReviewRequest request) {
-        return reviewService.createReview(request);
+    public ResponseEntity<ReviewResponse> create(@Valid @RequestBody ReviewRequest request) {
+        return new ResponseEntity<>(reviewService.createReview(request), HttpStatus.CREATED);
     }
 
     @GetMapping
-    public List<ReviewResponse> getAll() {
-        return reviewService.getAllReviews();
+    public ResponseEntity<List<ReviewResponse>> getAll() {
+        return ResponseEntity.ok(reviewService.getAllReviews());
     }
 
     @GetMapping("/{id}")
-    public ReviewResponse getById(@PathVariable Long id) {
-        return reviewService.getReviewById(id);
+    public ResponseEntity<ReviewResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(reviewService.getReviewById(id));
     }
-}
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ReviewResponse> update(@PathVariable Long id, @Valid @RequestBody ReviewRequest request) {
+        return ResponseEntity.ok(reviewService.updateReview(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> delete(@PathVariable Long id) {
+        reviewService.deleteReview(id);
+        return ResponseEntity.ok("Performance review card deleted successfully");
+    }}

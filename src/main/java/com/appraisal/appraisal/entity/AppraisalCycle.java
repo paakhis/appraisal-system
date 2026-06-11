@@ -1,10 +1,11 @@
 package com.appraisal.appraisal.entity;
 
 import jakarta.persistence.*;
-        import lombok.*;
-
-        import java.time.LocalDate;
+import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "appraisal_cycles")
@@ -18,28 +19,35 @@ public class AppraisalCycle {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "name", nullable = false, unique = true, length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column(nullable = false)
+    @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private Boolean active = true;
 
-    @Column(name = "created_at", updatable = false)
+    // Relational safety mapping linking down to future individual evaluation trackers
+    @OneToMany(mappedBy = "cycle", fetch = FetchType.LAZY)
+    private List<Appraisal> appraisals = new ArrayList<>();
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        if (this.active == null) {
+            this.active = true;
+        }
     }
 
     @PreUpdate

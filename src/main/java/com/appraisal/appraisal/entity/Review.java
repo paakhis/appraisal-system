@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.entity;
 
+import com.appraisal.appraisal.entity.enums.ReviewStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,34 +18,47 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Employee being reviewed
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "appraisal_id", nullable = false)
+    private Appraisal appraisal;
 
-    // Manager who wrote review
-    private Long managerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private User employee;
 
-    // Appraisal cycle reference
-    private Long cycleId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id", nullable = false)
+    private User manager;
 
+    @Column(name = "performance_rating", nullable = false)
     private Double performanceRating;
 
+    @Column(name = "comments", length = 1000)
     private String comments;
 
+    @Column(name = "strengths", length = 1000)
     private String strengths;
 
+    @Column(name = "improvements", length = 1000)
     private String improvements;
 
-    private String status;
-    // DRAFT, SUBMITTED, APPROVED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 50)
+    private ReviewStatus status = ReviewStatus.DRAFT;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        this.status = "DRAFT";
+        if (this.status == null) {
+            this.status = ReviewStatus.DRAFT;
+        }
     }
 
     @PreUpdate

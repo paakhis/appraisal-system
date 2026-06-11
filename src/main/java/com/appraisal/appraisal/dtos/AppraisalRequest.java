@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.dtos;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Data
@@ -7,6 +8,12 @@ import lombok.*;
 @AllArgsConstructor
 public class AppraisalRequest {
 
+    @NotNull(message = "EmployeeId is required")
     private Long employeeId;
+
+    @NotNull(message = "ManagerId is required")
+    private Long managerId;
+
+    @NotNull(message = "CycleId is required")
     private Long cycleId;
 }

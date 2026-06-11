@@ -4,71 +4,45 @@ import com.appraisal.appraisal.dtos.SelfEvaluationRequest;
 import com.appraisal.appraisal.dtos.SelfEvaluationResponse;
 import com.appraisal.appraisal.service.SelfEvaluationService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/self-evaluations")
+@RequestMapping("/api/self-evaluations")
+@RequiredArgsConstructor
 public class SelfEvaluationController {
 
-    private final SelfEvaluationService
-            selfEvaluationService;
-
-    public SelfEvaluationController(
-            SelfEvaluationService selfEvaluationService) {
-
-        this.selfEvaluationService =
-                selfEvaluationService;
-    }
+    private final SelfEvaluationService selfEvaluationService;
 
     @PostMapping
-    public SelfEvaluationResponse
-    createSelfEvaluation(
-            @Valid
-            @RequestBody
-            SelfEvaluationRequest request) {
-
-        return selfEvaluationService
-                .createSelfEvaluation(request);
+    public ResponseEntity<SelfEvaluationResponse> createSelfEvaluation(@Valid @RequestBody SelfEvaluationRequest request) {
+        return new ResponseEntity<>(selfEvaluationService.createSelfEvaluation(request), HttpStatus.CREATED);
     }
 
     @GetMapping
-    public List<SelfEvaluationResponse>
-    getAllSelfEvaluations() {
-
-        return selfEvaluationService
-                .getAllSelfEvaluations();
+    public ResponseEntity<List<SelfEvaluationResponse>> getAllSelfEvaluations() {
+        return ResponseEntity.ok(selfEvaluationService.getAllSelfEvaluations());
     }
 
     @GetMapping("/{id}")
-    public SelfEvaluationResponse
-    getSelfEvaluationById(
-            @PathVariable Long id) {
-
-        return selfEvaluationService
-                .getSelfEvaluationById(id);
+    public ResponseEntity<SelfEvaluationResponse> getSelfEvaluationById(@PathVariable Long id) {
+        return ResponseEntity.ok(selfEvaluationService.getSelfEvaluationById(id));
     }
 
     @PutMapping("/{id}")
-    public SelfEvaluationResponse
-    updateSelfEvaluation(
+    public ResponseEntity<SelfEvaluationResponse> updateSelfEvaluation(
             @PathVariable Long id,
-            @Valid
-            @RequestBody
-            SelfEvaluationRequest request) {
-
-        return selfEvaluationService
-                .updateSelfEvaluation(
-                        id,
-                        request);
+            @Valid @RequestBody SelfEvaluationRequest request) {
+        return ResponseEntity.ok(selfEvaluationService.updateSelfEvaluation(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public void deleteSelfEvaluation(
-            @PathVariable Long id) {
-
-        selfEvaluationService
-                .deleteSelfEvaluation(id);
-        }
-        }
+    public ResponseEntity<String> deleteSelfEvaluation(@PathVariable Long id) {
+        selfEvaluationService.deleteSelfEvaluation(id);
+        return ResponseEntity.ok("Self evaluation tracking record deleted successfully");
+    }
+}

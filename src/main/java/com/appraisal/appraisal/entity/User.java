@@ -5,55 +5,63 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column (name = "name", nullable = false)
+    @Column(name = "name", nullable = false, length = 150)
     private String name;
 
-    @Column (name = "email", nullable = false, unique = true)
+    @Column(name = "email_id", nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column (name = "password", nullable = false)
+    @Column(name = "password", nullable = false)
     private String password;
 
-    @Enumerated (EnumType.STRING)
-    @Column (name = "role" , nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 50)
     private Roles roles;
 
-    @ManyToOne
-    @JoinColumn (name = "department", nullable = false)
-    private Department department;
-
-    @Column (name = "designation")
+    @Column(name = "designation", nullable = false, length = 100)
     private String designation;
 
-    @Column (name = "manager")
-    private String manager;
+    // Managed cleanly via repository joins to prevent lazy loading issues
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
 
-    @Column (name = "createdAt")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private User manager;
+
+    @OneToMany(mappedBy = "manager", fetch = FetchType.LAZY)
+    private List<User> subordinates = new ArrayList<>();
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column (name = "updatedAt")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
-    protected void onCreate(){
+    protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
-    protected void onUpdate(){
+    protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 }

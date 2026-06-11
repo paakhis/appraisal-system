@@ -16,31 +16,37 @@ public class SelfEvaluation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 2000)
+    @Column(name = "achievements", nullable = false, length = 2000)
     private String achievements;
 
-    @Column(length = 2000)
+    @Column(name = "challenges", length = 2000)
     private String challenges;
 
-    @Column(length = 2000)
+    @Column(name = "comments", length = 2000)
     private String comments;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appraisal_cycle_id", nullable = false)
     private AppraisalCycle appraisalCycle;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();}
+        this.updatedAt = LocalDateTime.now();
+    }
 
     @PreUpdate
-    public void onUpdate() {this.updatedAt = LocalDateTime.now();}
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

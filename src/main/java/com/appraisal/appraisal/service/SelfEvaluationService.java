@@ -6,18 +6,10 @@ import com.appraisal.appraisal.dtos.SelfEvaluationResponse;
 import java.util.List;
 
 public interface SelfEvaluationService {
-
-    SelfEvaluationResponse createSelfEvaluation(
-            SelfEvaluationRequest request);
-
+    SelfEvaluationResponse createSelfEvaluation(SelfEvaluationRequest request);
     List<SelfEvaluationResponse> getAllSelfEvaluations();
-
-    SelfEvaluationResponse getSelfEvaluationById(
-            Long id);
-
-    SelfEvaluationResponse updateSelfEvaluation(
-            Long id,
-            SelfEvaluationRequest request);
-
+    SelfEvaluationResponse getSelfEvaluationById(Long id);
+    SelfEvaluationResponse updateSelfEvaluation(Long id, SelfEvaluationRequest request);
     void deleteSelfEvaluation(Long id);
 }
+

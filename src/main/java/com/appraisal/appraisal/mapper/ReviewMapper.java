@@ -3,29 +3,40 @@ package com.appraisal.appraisal.mapper;
 import com.appraisal.appraisal.dtos.ReviewRequest;
 import com.appraisal.appraisal.dtos.ReviewResponse;
 import com.appraisal.appraisal.entity.Review;
+import com.appraisal.appraisal.entity.User;
+import com.appraisal.appraisal.entity.Appraisal;
+
 
 public class ReviewMapper {
 
-    public static Review toEntity(ReviewRequest request) {
+    public static Review toEntity(ReviewRequest request, Appraisal appraisal, User employee, User manager) {
+        if (request == null) return null;
+
         Review review = new Review();
-
-        review.setEmployeeId(request.getEmployeeId());
-        review.setManagerId(request.getManagerId());
-        review.setCycleId(request.getCycleId());
+        review.setAppraisal(appraisal);
+        review.setEmployee(employee);
+        review.setManager(manager);
         review.setPerformanceRating(request.getPerformanceRating());
-        review.setComments(request.getComments());
-        review.setStrengths(request.getStrengths());
-        review.setImprovements(request.getImprovements());
-
+        review.setComments(request.getComments() != null ? request.getComments().trim() : null);
+        review.setStrengths(request.getStrengths() != null ? request.getStrengths().trim() : null);
+        review.setImprovements(request.getImprovements() != null ? request.getImprovements().trim() : null);
         return review;
     }
 
     public static ReviewResponse toResponse(Review review) {
+        if (review == null) return null;
+
+        // Safely extract the cycle identifier link to preserve data tracing rules
+        Long extractedCycleId = (review.getAppraisal() != null && review.getAppraisal().getCycle() != null)
+                ? review.getAppraisal().getCycle().getId()
+                : null;
+
         return new ReviewResponse(
                 review.getId(),
-                review.getEmployeeId(),
-                review.getManagerId(),
-                review.getCycleId(),
+                review.getAppraisal() != null ? review.getAppraisal().getId() : null,
+                review.getEmployee() != null ? review.getEmployee().getId() : null,
+                review.getManager() != null ? review.getManager().getId() : null,
+                extractedCycleId, // Successfully resolved compilation constructor mismatch here
                 review.getPerformanceRating(),
                 review.getComments(),
                 review.getStrengths(),

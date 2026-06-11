@@ -5,65 +5,89 @@ import com.appraisal.appraisal.entity.Department;
 import com.appraisal.appraisal.mapper.DepartmentMapper;
 import com.appraisal.appraisal.repository.DepartmentRepository;
 import com.appraisal.appraisal.service.DepartmentService;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.appraisal.appraisal.exception.*;
 import java.util.List;
-import java.util.ArrayList;
-@Service
-public class DepartmentImpl implements DepartmentService {
-    private final DepartmentRepository departmentRepository;
 
-    public DepartmentImpl(DepartmentRepository departmentRepository) {
-        this.departmentRepository = departmentRepository;
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class DepartmentImpl implements DepartmentService {
+
+    private final DepartmentRepository departmentRepository;
+    private final DepartmentMapper departmentMapper;
+
+    @Override
+    @Transactional
+    public DepartmentResponse createDepartment(DepartmentRequest request) {
+        if (request == null || request.getName() == null) {
+            throw new BadRequestException("Department name cannot be null");
+        }
+
+        String normalizedName = request.getName().trim();
+
+        if (departmentRepository.existsByNameIgnoreCase(normalizedName)) {
+            throw new DuplicateResourceException("Department with name '" + normalizedName + "' already exists");
+        }
+
+        Department department = departmentMapper.toEntity(request);
+        department.setName(normalizedName);
+
+        Department savedDepartment = departmentRepository.save(department);
+        return departmentMapper.toResponse(savedDepartment);
     }
 
     @Override
-    public DepartmentResponse createDepartment(DepartmentRequest request) {
-        String name = request.getName().trim();
-        if (name.isBlank()) {throw new RuntimeException("Department name cannot be blank");}
-        if (departmentRepository.existsByNameIgnoreCase(name)) {throw new RuntimeException("Department already exists");}
-        Department department = DepartmentMapper.toEntity(request);
-        department.setName(name);
-        Department savedDepartment = departmentRepository.save(department);
-        return DepartmentMapper.toResponse(savedDepartment);}
-
-//    @Override
-//    public List<DepartmentResponse> getAllDepartment() {
-//        return List.of();
-//    }
-
-    @Override
-    public List<DepartmentResponse> getAllDepartment(){
-        List<Department> departments = departmentRepository.findAll();
-        return departments.stream()
-                .map(DepartmentMapper::toResponse)
-                .toList();}
+    public List<DepartmentResponse> getAllDepartments() {
+        return departmentRepository.findAll()
+                .stream()
+                .map(departmentMapper::toResponse)
+                .toList();
+    }
 
     @Override
     public DepartmentResponse getDepartmentById(Long id) {
         Department department = departmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Department Not Found"));
-        return DepartmentMapper.toResponse(department);}
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found with ID: " + id));
+        return departmentMapper.toResponse(department);
+    }
 
     @Override
+    @Transactional
     public DepartmentResponse updateDepartment(Long id, DepartmentRequest request) {
-        Department department = departmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Department Not Found"));
-        String newName = request.getName().trim();
-        if (newName.isBlank()) {throw new RuntimeException("Department name cannot be blank");}
+        if (request == null || request.getName() == null) {
+            throw new BadRequestException("Department name cannot be null");
+        }
 
-        if (!department.getName().equalsIgnoreCase(newName) && departmentRepository.existsByNameIgnoreCase(newName)) {
-            throw new RuntimeException("Department with this name already exists");}
-        department.setName(newName);
-        department.setDescription(request.getDescription());
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found with ID: " + id));
+
+        String normalizedName = request.getName().trim();
+
+        if (!department.getName().equalsIgnoreCase(normalizedName) &&
+                departmentRepository.existsByNameIgnoreCase(normalizedName)) {
+            throw new DuplicateResourceException("Department with name '" + normalizedName + "' already exists");
+        }
+
+        department.setName(normalizedName);
+        department.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
 
         Department updatedDepartment = departmentRepository.save(department);
-        return DepartmentMapper.toResponse(updatedDepartment);}
+        return departmentMapper.toResponse(updatedDepartment);
+    }
 
     @Override
+    @Transactional
     public void deleteDepartmentById(Long id) {
-        if (!departmentRepository.existsById(id)) {
-            throw new RuntimeException("Department Not Found");}
-        departmentRepository.deleteById(id);}
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found with ID: " + id));
 
+        if (department.getUsers() != null && !department.getUsers().isEmpty()) {
+            throw new BadRequestException("Cannot delete department because it contains active users assigned to it");
+        }
 
+        departmentRepository.delete(department);
+    }
 }

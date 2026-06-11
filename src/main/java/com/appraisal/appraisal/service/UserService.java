@@ -6,10 +6,8 @@ import java.util.*;
 
 public interface UserService {
     UserResponse createUser(UserRequest request);
-    List<UserResponse> getAllUser();
+    List<UserResponse> getAllUsers();
     UserResponse getUserById(Long id);
     UserResponse updateUser(Long id, UserRequest request);
-    String deleteUserById(Long id);
-
-
+    void deleteUser(Long id);
 }

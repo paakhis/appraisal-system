@@ -9,52 +9,65 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> handleResourceNotFoundException(
-            ResourceNotFoundException ex) {
-        return new ResponseEntity<>(
-                ex.getMessage(),
-                HttpStatus.NOT_FOUND
+    public ResponseEntity<com.appraisal.appraisal.exception.ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        com.appraisal.appraisal.exception.ErrorResponse error = new com.appraisal.appraisal.exception.ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage()
         );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<String> handleDuplicateResourceException(
-            DuplicateResourceException ex) {
-        return new ResponseEntity<>(
-                ex.getMessage(),
-                HttpStatus.CONFLICT
+    public ResponseEntity<com.appraisal.appraisal.exception.ErrorResponse> handleDuplicateResourceException(DuplicateResourceException ex) {
+        com.appraisal.appraisal.exception.ErrorResponse error = new com.appraisal.appraisal.exception.ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage()
         );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<String> handleBadRequest(
-            BadRequestException ex) {
-
-        return new ResponseEntity<>(
-                ex.getMessage(),
-                HttpStatus.BAD_REQUEST
+    public ResponseEntity<com.appraisal.appraisal.exception.ErrorResponse> handleBadRequest(BadRequestException ex) {
+        com.appraisal.appraisal.exception.ErrorResponse error = new com.appraisal.appraisal.exception.ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage()
         );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>>
-    handleValidationException(MethodArgumentNotValidException ex) {
-        Map<String, String> errors =
-                new HashMap<>();
-        ex.getBindingResult()
-                .getFieldErrors()
-                .forEach(error ->
-                        errors.put(
-                                error.getField(),
-                                error.getDefaultMessage()
-                        ));
 
-        return new ResponseEntity<>(
-                errors,
-                HttpStatus.BAD_REQUEST);
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<com.appraisal.appraisal.exception.ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                errors.put(error.getField(), error.getDefaultMessage())
+        );
+
+        com.appraisal.appraisal.exception.ErrorResponse error = new com.appraisal.appraisal.exception.ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "Validation Error"
+        );
+
+        error.setValidationErrors(errors);
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<com.appraisal.appraisal.exception.ErrorResponse> handleGeneralException(Exception ex) {
+        com.appraisal.appraisal.exception.ErrorResponse error = new com.appraisal.appraisal.exception.ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
+                ex.getMessage()
+        );
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

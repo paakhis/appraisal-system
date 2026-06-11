@@ -4,71 +4,42 @@ import com.appraisal.appraisal.dtos.AppraisalCycleRequest;
 import com.appraisal.appraisal.dtos.AppraisalCycleResponse;
 import com.appraisal.appraisal.service.AppraisalCycleService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/appraisal-cycles")
 public class AppraisalCycleController {
 
-    private final AppraisalCycleService
-            appraisalCycleService;
-
-    public AppraisalCycleController(
-            AppraisalCycleService appraisalCycleService) {
-
-        this.appraisalCycleService =
-                appraisalCycleService;
-    }
+    private final AppraisalCycleService service;
 
     @PostMapping
-    public AppraisalCycleResponse
-    createCycle(
-            @Valid
-            @RequestBody
-            AppraisalCycleRequest request) {
-
-        return appraisalCycleService
-                .createCycle(request);
+    public ResponseEntity<AppraisalCycleResponse> create(@Valid @RequestBody AppraisalCycleRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.createCycle(request));
     }
 
     @GetMapping
-    public List<AppraisalCycleResponse>
-    getAllCycles() {
-
-        return appraisalCycleService
-                .getAllCycles();
+    public ResponseEntity<List<AppraisalCycleResponse>> getAll() {
+        return ResponseEntity.ok(service.getAllCycles());
     }
 
     @GetMapping("/{id}")
-    public AppraisalCycleResponse
-    getCycleById(
-            @PathVariable Long id) {
-
-        return appraisalCycleService
-                .getCycleById(id);
+    public ResponseEntity<AppraisalCycleResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getCycleById(id));
     }
 
     @PutMapping("/{id}")
-    public AppraisalCycleResponse
-    updateCycle(
-            @PathVariable Long id,
-            @Valid
-            @RequestBody
-            AppraisalCycleRequest request) {
-
-        return appraisalCycleService
-                .updateCycle(
-                        id,
-                        request);
+    public ResponseEntity<AppraisalCycleResponse> update(@PathVariable Long id, @Valid @RequestBody AppraisalCycleRequest request) {
+        return ResponseEntity.ok(service.updateCycle(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public void deleteCycle(
-            @PathVariable Long id) {
-
-        appraisalCycleService
-                .deleteCycle(id);
-    }
-}
+    public ResponseEntity<String> delete(@PathVariable Long id) {
+        service.deleteCycle(id);
+        return ResponseEntity.ok("Cycle deleted successfully");
+}}

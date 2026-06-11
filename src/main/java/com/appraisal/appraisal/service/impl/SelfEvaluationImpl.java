@@ -5,180 +5,117 @@ import com.appraisal.appraisal.dtos.SelfEvaluationResponse;
 import com.appraisal.appraisal.entity.AppraisalCycle;
 import com.appraisal.appraisal.entity.SelfEvaluation;
 import com.appraisal.appraisal.entity.User;
-import com.appraisal.appraisal.exception.ResourceNotFoundException;
+import com.appraisal.appraisal.exception.*;
 import com.appraisal.appraisal.mapper.SelfEvaluationMapper;
-import com.appraisal.appraisal.repository.AppraisalCycleRepository;
-import com.appraisal.appraisal.repository.SelfEvaluationRepository;
-import com.appraisal.appraisal.repository.UserRepository;
+import com.appraisal.appraisal.repository.*;
 import com.appraisal.appraisal.service.SelfEvaluationService;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SelfEvaluationImpl implements SelfEvaluationService {
 
     private final SelfEvaluationRepository selfEvaluationRepository;
-
     private final UserRepository userRepository;
-
     private final AppraisalCycleRepository appraisalCycleRepository;
-
     private final SelfEvaluationMapper selfEvaluationMapper;
 
-    public SelfEvaluationImpl(
-            SelfEvaluationRepository selfEvaluationRepository,
-            UserRepository userRepository,
-            AppraisalCycleRepository appraisalCycleRepository,
-            SelfEvaluationMapper selfEvaluationMapper) {
-
-        this.selfEvaluationRepository =
-                selfEvaluationRepository;
-
-        this.userRepository =
-                userRepository;
-
-        this.appraisalCycleRepository =
-                appraisalCycleRepository;
-
-        this.selfEvaluationMapper =
-                selfEvaluationMapper;
-    }
-
     @Override
-    public SelfEvaluationResponse createSelfEvaluation(
-            SelfEvaluationRequest request) {
+    @Transactional
+    public SelfEvaluationResponse createSelfEvaluation(SelfEvaluationRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Request payload body content cannot be null");
+        }
 
-        User user = userRepository
-                .findById(request.getUserId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"));
+        // Rule Safeguard: Prevent multiple submissions per employee per cycle
+        if (selfEvaluationRepository.existsByUserIdAndAppraisalCycleId(request.getUserId(), request.getAppraisalCycleId())) {
+            throw new DuplicateResourceException("A self-evaluation file already exists for this employee within this tracking cycle");
+        }
 
-        AppraisalCycle cycle =
-                appraisalCycleRepository
-                        .findById(
-                                request.getAppraisalCycleId())
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appraisal Cycle not found"));
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + request.getUserId()));
 
-        SelfEvaluation selfEvaluation =
-                new SelfEvaluation();
+        AppraisalCycle cycle = appraisalCycleRepository.findById(request.getAppraisalCycleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appraisal Cycle record not found with ID: " + request.getAppraisalCycleId()));
 
-        selfEvaluation.setAchievements(
-                request.getAchievements());
+        // Rule Safeguard: Block entries for closed/inactive cycles
+        if (cycle.getActive() != null && !cycle.getActive()) {
+            throw new BadRequestException("Cannot submit evaluation records under an inactive or closed appraisal cycle window");
+        }
 
-        selfEvaluation.setChallenges(
-                request.getChallenges());
-
-        selfEvaluation.setComments(
-                request.getComments());
-
+        SelfEvaluation selfEvaluation = new SelfEvaluation();
+        selfEvaluation.setAchievements(request.getAchievements().trim());
+        selfEvaluation.setChallenges(request.getChallenges() != null ? request.getChallenges().trim() : null);
+        selfEvaluation.setComments(request.getComments() != null ? request.getComments().trim() : null);
         selfEvaluation.setUser(user);
-
         selfEvaluation.setAppraisalCycle(cycle);
 
-        SelfEvaluation savedSelfEvaluation =
-                selfEvaluationRepository.save(
-                        selfEvaluation);
-
-        return selfEvaluationMapper.toResponse(
-                savedSelfEvaluation);
+        SelfEvaluation saved = selfEvaluationRepository.save(selfEvaluation);
+        return selfEvaluationMapper.toResponse(saved);
     }
 
-//    @Override
-//    public SelfEvaluationResponse createSelfEvaluation(SelfEvaluationRequest request) {
-//        return null;
-//    }
-
     @Override
-    public List<SelfEvaluationResponse>
-    getAllSelfEvaluations() {
-
-        return selfEvaluationRepository
-                .findAll()
+    public List<SelfEvaluationResponse> getAllSelfEvaluations() {
+        return selfEvaluationRepository.findAllWithRelationships()
                 .stream()
-                .map(
-                        selfEvaluationMapper::toResponse
-                )
+                .map(selfEvaluationMapper::toResponse)
                 .toList();
     }
 
     @Override
-    public SelfEvaluationResponse
-    getSelfEvaluationById(Long id) {
-
-        SelfEvaluation selfEvaluation =
-                selfEvaluationRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Self Evaluation not found"));
-
-        return selfEvaluationMapper.toResponse(
-                selfEvaluation);
+    public SelfEvaluationResponse getSelfEvaluationById(Long id) {
+        SelfEvaluation selfEvaluation = selfEvaluationRepository.findByIdWithRelationships(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Self Evaluation not found with ID: " + id));
+        return selfEvaluationMapper.toResponse(selfEvaluation);
     }
 
     @Override
-    public SelfEvaluationResponse
-    updateSelfEvaluation(
-            Long id,
-            SelfEvaluationRequest request) {
+    @Transactional
+    public SelfEvaluationResponse updateSelfEvaluation(Long id, SelfEvaluationRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Update request payload body content cannot be null");
+        }
 
-        SelfEvaluation selfEvaluation =
-                selfEvaluationRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Self Evaluation not found"));
+        SelfEvaluation selfEvaluation = selfEvaluationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Self Evaluation data file not found with ID: " + id));
 
-        User user = userRepository
-                .findById(request.getUserId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found"));
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + request.getUserId()));
 
-        AppraisalCycle cycle =
-                appraisalCycleRepository
-                        .findById(
-                                request.getAppraisalCycleId())
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appraisal Cycle not found"));
+        AppraisalCycle cycle = appraisalCycleRepository.findById(request.getAppraisalCycleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appraisal Cycle record not found with ID: " + request.getAppraisalCycleId()));
 
-        selfEvaluation.setAchievements(
-                request.getAchievements());
+        // Ensure users don't accidentally update their evaluation into an inactive cycle
+        if (cycle.getActive() != null && !cycle.getActive()) {
+            throw new BadRequestException("Cannot update evaluation records under an inactive or closed appraisal cycle window");
+        }
 
-        selfEvaluation.setChallenges(
-                request.getChallenges());
+        // Manage contextual swap tracking securely
+        if (!selfEvaluation.getAppraisalCycle().getId().equals(request.getAppraisalCycleId()) &&
+                selfEvaluationRepository.existsByUserIdAndAppraisalCycleId(request.getUserId(), request.getAppraisalCycleId())) {
+            throw new DuplicateResourceException("An evaluation card duplicate already exists inside that targeted destination cycle window");
+        }
 
-        selfEvaluation.setComments(
-                request.getComments());
-
+        selfEvaluation.setAchievements(request.getAchievements().trim());
+        selfEvaluation.setChallenges(request.getChallenges() != null ? request.getChallenges().trim() : null);
+        selfEvaluation.setComments(request.getComments() != null ? request.getComments().trim() : null);
         selfEvaluation.setUser(user);
-
         selfEvaluation.setAppraisalCycle(cycle);
 
-        SelfEvaluation updatedSelfEvaluation =
-                selfEvaluationRepository.save(
-                        selfEvaluation);
-
-        return selfEvaluationMapper.toResponse(
-                updatedSelfEvaluation);
+        SelfEvaluation updated = selfEvaluationRepository.save(selfEvaluation);
+        return selfEvaluationMapper.toResponse(updated);
     }
 
     @Override
+    @Transactional
     public void deleteSelfEvaluation(Long id) {
-
-        SelfEvaluation selfEvaluation =
-                selfEvaluationRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Self Evaluation not found"));
-
-        selfEvaluationRepository.delete(
-                selfEvaluation);
+        SelfEvaluation selfEvaluation = selfEvaluationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Self Evaluation file not found with ID: " + id));
+        selfEvaluationRepository.delete(selfEvaluation);
     }
 }

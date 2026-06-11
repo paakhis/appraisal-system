@@ -2,109 +2,135 @@ package com.appraisal.appraisal.service.impl;
 
 import com.appraisal.appraisal.dtos.UserRequest;
 import com.appraisal.appraisal.dtos.UserResponse;
+import com.appraisal.appraisal.entity.Department;
 import com.appraisal.appraisal.entity.User;
+import com.appraisal.appraisal.exception.*;
 import com.appraisal.appraisal.mapper.UserMapper;
-import com.appraisal.appraisal.repository.UserRepository;
+import com.appraisal.appraisal.repository.*;
 import com.appraisal.appraisal.service.UserService;
+import com.appraisal.appraisal.entity.enums.Roles;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserImpl implements UserService {
 
     private final UserRepository userRepository;
-
-    public UserImpl(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    private final DepartmentRepository departmentRepository;
+    private final UserMapper userMapper;
 
     @Override
+    @Transactional
     public UserResponse createUser(UserRequest request) {
-
-        String name = request.getName().trim();
-        String email = request.getEmail().trim();
-
-        if (name.isBlank()) {
-            throw new RuntimeException("Name cannot be blank");
+        if (request == null) {
+            throw new BadRequestException("Request body cannot be null");
         }
 
-        if (email.isBlank()) {
-            throw new RuntimeException("Email cannot be blank");
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new DuplicateResourceException("User with email '" + normalizedEmail + "' already exists");
         }
 
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new RuntimeException("Email already exists");
+        Department department = departmentRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found with ID: " + request.getDepartmentId()));
+
+        User manager = null;
+        if (request.getManagerId() != null) {
+            manager = userRepository.findById(request.getManagerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with ID: " + request.getManagerId()));
         }
 
-        User user = UserMapper.toEntity(request);
-        user.setName(name);
-        user.setEmail(email);
+        User user = new User();
+        mapRequestToEntity(request, user, department, manager);
+        user.setEmail(normalizedEmail);
 
-        User savedUser = userRepository.save(user);
-
-        return UserMapper.toResponse(savedUser);
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
     }
 
-
     @Override
-    public List<UserResponse> getAllUser() {
-        List<User> users = userRepository.findAll();
-
-        return users.stream()
-                .map(UserMapper::toResponse)
+    public List<UserResponse> getAllUsers() {
+        // Uses the newly optimized FETCH JOIN query instead of standard findAll()
+        return userRepository.findAllWithRelationships()
+                .stream()
+                .map(userMapper::toResponse)
                 .toList();
     }
 
     @Override
     public UserResponse getUserById(Long id) {
-
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
-
-        return UserMapper.toResponse(user);
+        User user = userRepository.findByIdWithRelationships(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+        return userMapper.toResponse(user);
     }
 
     @Override
+    @Transactional
     public UserResponse updateUser(Long id, UserRequest request) {
-
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
-
-        String newName = request.getName().trim();
-        String newEmail = request.getEmail().trim();
-
-        if (newName.isBlank()) {
-            throw new RuntimeException("Name cannot be blank");
+        if (request == null) {
+            throw new BadRequestException("Request body cannot be null");
         }
 
-        if (newEmail.isBlank()) {
-            throw new RuntimeException("Email cannot be blank");
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (!existingUser.getEmail().equalsIgnoreCase(normalizedEmail) &&
+                userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new DuplicateResourceException("Email '" + normalizedEmail + "' is already claimed by another user");
         }
 
-        if (!user.getEmail().equalsIgnoreCase(newEmail)
-                && userRepository.existsByEmailIgnoreCase(newEmail)) {
+        Department department = departmentRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found with ID: " + request.getDepartmentId()));
 
-            throw new RuntimeException("Email already exists");
+        User manager = null;
+        if (request.getManagerId() != null) {
+            if (id.equals(request.getManagerId())) {
+                throw new BadRequestException("A user cannot be assigned as their own manager");
+            }
+            manager = userRepository.findById(request.getManagerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with ID: " + request.getManagerId()));
         }
 
-        user.setName(newName);
-        user.setEmail(newEmail);
-        user.setPassword(request.getPassword());
+        // Map updates directly onto our managed existing database object to safely protect audit history timestamps
+        mapRequestToEntity(request, existingUser, department, manager);
+        existingUser.setEmail(normalizedEmail);
 
-        User updatedUser = userRepository.save(user);
-
-        return UserMapper.toResponse(updatedUser);
+        User saved = userRepository.save(existingUser);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public String deleteUserById(Long id) {
+    @Transactional
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
 
-        if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User Not Found");
+        // Safeguard constraint: Prevent deleting a manager if employees report to them
+        if (userRepository.existsByManagerId(id)) {
+            throw new BadRequestException("Cannot delete this user because they are actively assigned as a manager to other employees");
         }
 
-        userRepository.deleteById(id);
-        return "User Deleted Successfully";
+        userRepository.delete(user);
+    }
+
+    // A robust mapping utility method that catches Enum parsing failures gracefully
+    private void mapRequestToEntity(UserRequest request, User user, Department department, User manager) {
+        user.setName(request.getName().trim());
+        user.setPassword(request.getPassword());
+        user.setDesignation(request.getDesignation().trim());
+        user.setDepartment(department);
+        user.setManager(manager);
+
+        try {
+            user.setRoles(Roles.valueOf(request.getRoles().trim().toUpperCase()));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BadRequestException("Invalid system role type standard provided: " + request.getRoles());
+        }
     }
 }

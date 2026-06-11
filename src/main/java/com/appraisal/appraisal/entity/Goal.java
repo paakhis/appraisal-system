@@ -12,22 +12,23 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Goals {
+public class Goal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "title", nullable = false, length = 150)
     private String title;
 
-    @Column(length = 1000)
+    @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(nullable = false)
+    @Column(name = "target_date", nullable = false)
     private LocalDate targetDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 50)
     private GoalStatus status = GoalStatus.NOT_STARTED;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -38,16 +39,19 @@ public class Goals {
     @JoinColumn(name = "appraisal_cycle_id", nullable = false)
     private AppraisalCycle appraisalCycle;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = GoalStatus.NOT_STARTED;
+        }
     }
 
     @PreUpdate

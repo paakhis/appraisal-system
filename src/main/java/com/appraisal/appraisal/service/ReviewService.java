@@ -6,10 +6,9 @@ import com.appraisal.appraisal.dtos.ReviewResponse;
 import java.util.List;
 
 public interface ReviewService {
-
     ReviewResponse createReview(ReviewRequest request);
-
     List<ReviewResponse> getAllReviews();
-
     ReviewResponse getReviewById(Long id);
+    ReviewResponse updateReview(Long id, ReviewRequest request);
+    void deleteReview(Long id);
 }

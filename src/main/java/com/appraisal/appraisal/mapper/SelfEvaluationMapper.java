@@ -7,18 +7,29 @@ import org.springframework.stereotype.Component;
 @Component
 public class SelfEvaluationMapper {
 
-    public SelfEvaluationResponse toResponse(
-            SelfEvaluation selfEvaluation) {
+    public SelfEvaluationResponse toResponse(SelfEvaluation selfEvaluation) {
+        if (selfEvaluation == null) {
+            return null;
+        }
 
-        return new SelfEvaluationResponse(
-                selfEvaluation.getId(),
-                selfEvaluation.getAchievements(),
-                selfEvaluation.getChallenges(),
-                selfEvaluation.getComments(),
-                selfEvaluation.getUser().getName(),
-                selfEvaluation.getAppraisalCycle().getName(),
-                selfEvaluation.getCreatedAt(),
-                selfEvaluation.getUpdatedAt()
-        );
+        SelfEvaluationResponse response = new SelfEvaluationResponse();
+        response.setId(selfEvaluation.getId());
+        response.setAchievements(selfEvaluation.getAchievements());
+        response.setChallenges(selfEvaluation.getChallenges());
+        response.setComments(selfEvaluation.getComments());
+        response.setCreatedAt(selfEvaluation.getCreatedAt());
+        response.setUpdatedAt(selfEvaluation.getUpdatedAt());
+
+        if (selfEvaluation.getUser() != null) {
+            response.setUserId(selfEvaluation.getUser().getId());
+            response.setEmployeeName(selfEvaluation.getUser().getName());
+        }
+
+        if (selfEvaluation.getAppraisalCycle() != null) {
+            response.setAppraisalCycleId(selfEvaluation.getAppraisalCycle().getId());
+            response.setCycleName(selfEvaluation.getAppraisalCycle().getName());
+        }
+
+        return response;
     }
 }

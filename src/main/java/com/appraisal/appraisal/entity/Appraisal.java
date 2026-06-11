@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.entity;
 
+import com.appraisal.appraisal.entity.enums.AppraisalStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -16,30 +17,44 @@ public class Appraisal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // who is being evaluated (we will link User later)
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private User employee;
 
-    // cycle reference
-    private Long cycleId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id", nullable = false)
+    private User manager;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cycle_id", nullable = false)
+    private AppraisalCycle cycle;
+
+    @Column(name = "self_rating")
     private Double selfRating;
 
+    @Column(name = "manager_rating")
     private Double managerRating;
 
+    @Column(name = "final_comment", length = 1000)
     private String finalComment;
 
-    private String status;
-    // DRAFT, SUBMITTED, REVIEWED, COMPLETED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 50)
+    private AppraisalStatus status;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        this.status = "DRAFT";
+        if (this.status == null) {
+            this.status = AppraisalStatus.DRAFT;
+        }
     }
 
     @PreUpdate

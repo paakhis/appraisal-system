@@ -3,169 +3,114 @@ package com.appraisal.appraisal.service.impl;
 import com.appraisal.appraisal.dtos.AppraisalCycleRequest;
 import com.appraisal.appraisal.dtos.AppraisalCycleResponse;
 import com.appraisal.appraisal.entity.AppraisalCycle;
-import com.appraisal.appraisal.exception.BadRequestException;
-import com.appraisal.appraisal.exception.DuplicateResourceException;
-import com.appraisal.appraisal.exception.ResourceNotFoundException;
 import com.appraisal.appraisal.mapper.AppraisalCycleMapper;
 import com.appraisal.appraisal.repository.AppraisalCycleRepository;
 import com.appraisal.appraisal.service.AppraisalCycleService;
+import com.appraisal.appraisal.exception.*;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-public class AppraisalCycleImpl
-        implements AppraisalCycleService {
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class AppraisalCycleImpl implements AppraisalCycleService {
 
-    private final AppraisalCycleRepository
-            appraisalCycleRepository;
+    private final AppraisalCycleRepository repository;
+    private final AppraisalCycleMapper mapper;
 
-    private final AppraisalCycleMapper
-            appraisalCycleMapper;
+    @Override
+    @Transactional
+    public AppraisalCycleResponse createCycle(AppraisalCycleRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Request body cannot be null");
+        }
 
-    public AppraisalCycleImpl(
-            AppraisalCycleRepository appraisalCycleRepository,
-            AppraisalCycleMapper appraisalCycleMapper) {
+        validateDates(request);
 
-        this.appraisalCycleRepository =
-                appraisalCycleRepository;
+        String normalizedName = request.getName().trim();
+        if (repository.existsByNameIgnoreCase(normalizedName)) {
+            throw new DuplicateResourceException("Appraisal cycle with name '" + normalizedName + "' already exists");
+        }
 
-        this.appraisalCycleMapper =
-                appraisalCycleMapper;
+        // Business Rule Guard Rail: Enforce exactly one active cycle at a time across the enterprise
+        if (request.getActive() != null && request.getActive()) {
+            repository.deactivateAllActiveCycles();
+        }
+
+        AppraisalCycle cycle = mapper.toEntity(request);
+        cycle.setName(normalizedName);
+
+        return mapper.toResponse(repository.save(cycle));
     }
 
     @Override
-    public AppraisalCycleResponse createCycle(
-            AppraisalCycleRequest request) {
-
-        String cycleName =
-                request.getName().trim();
-
-        if (appraisalCycleRepository
-                .existsByNameIgnoreCase(
-                        cycleName)) {
-
-            throw new DuplicateResourceException(
-                    "Appraisal Cycle already exists");
-        }
-
-        if (request.getStartDate()
-                .isAfter(request.getEndDate())) {
-
-            throw new BadRequestException(
-                    "Start date cannot be after end date");
-        }
-
-        AppraisalCycle cycle =
-                new AppraisalCycle();
-
-        cycle.setName(cycleName);
-
-        cycle.setStartDate(
-                request.getStartDate());
-
-        cycle.setEndDate(
-                request.getEndDate());
-
-        cycle.setActive(true);
-
-        AppraisalCycle savedCycle =
-                appraisalCycleRepository.save(
-                        cycle);
-
-        return appraisalCycleMapper
-                .toResponse(savedCycle);
-    }
-
-    @Override
-    public List<AppraisalCycleResponse>
-    getAllCycles() {
-
-        return appraisalCycleRepository
-                .findAll()
+    public List<AppraisalCycleResponse> getAllCycles() {
+        return repository.findAll()
                 .stream()
-                .map(
-                        appraisalCycleMapper::toResponse
-                )
+                .map(mapper::toResponse)
                 .toList();
     }
 
     @Override
-    public AppraisalCycleResponse
-    getCycleById(Long id) {
-
-        AppraisalCycle cycle =
-                appraisalCycleRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appraisal Cycle not found"));
-
-        return appraisalCycleMapper
-                .toResponse(cycle);
+    public AppraisalCycleResponse getCycleById(Long id) {
+        AppraisalCycle cycle = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appraisal cycle not found with ID: " + id));
+        return mapper.toResponse(cycle);
     }
 
     @Override
-    public AppraisalCycleResponse
-    updateCycle(
-            Long id,
-            AppraisalCycleRequest request) {
-
-        AppraisalCycle cycle =
-                appraisalCycleRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appraisal Cycle not found"));
-
-        String newName =
-                request.getName().trim();
-
-        if (!cycle.getName()
-                .equalsIgnoreCase(newName)
-                &&
-                appraisalCycleRepository
-                        .existsByNameIgnoreCase(
-                                newName)) {
-
-            throw new DuplicateResourceException(
-                    "Appraisal Cycle already exists");
+    @Transactional
+    public AppraisalCycleResponse updateCycle(Long id, AppraisalCycleRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Request body cannot be null");
         }
 
-        if (request.getStartDate()
-                .isAfter(request.getEndDate())) {
+        validateDates(request);
 
-            throw new BadRequestException(
-                    "Start date cannot be after end date");
+        AppraisalCycle cycle = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appraisal cycle not found with ID: " + id));
+
+        String normalizedName = request.getName().trim();
+        if (!cycle.getName().equalsIgnoreCase(normalizedName) && repository.existsByNameIgnoreCase(normalizedName)) {
+            throw new DuplicateResourceException("Appraisal cycle with name '" + normalizedName + "' already exists");
         }
 
-        cycle.setName(newName);
+        // Manage active cycle overrides safely
+        if (request.getActive() != null && request.getActive() && !cycle.getActive()) {
+            repository.deactivateAllActiveCycles();
+        }
 
-        cycle.setStartDate(
-                request.getStartDate());
+        cycle.setName(normalizedName);
+        cycle.setStartDate(request.getStartDate());
+        cycle.setEndDate(request.getEndDate());
+        cycle.setActive(request.getActive() != null ? request.getActive() : cycle.getActive());
 
-        cycle.setEndDate(
-                request.getEndDate());
-
-        AppraisalCycle updatedCycle =
-                appraisalCycleRepository
-                        .save(cycle);
-
-        return appraisalCycleMapper
-                .toResponse(updatedCycle);
+        return mapper.toResponse(repository.save(cycle));
     }
 
     @Override
+    @Transactional
     public void deleteCycle(Long id) {
+        AppraisalCycle cycle = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appraisal cycle not found with ID: " + id));
 
-        AppraisalCycle cycle =
-                appraisalCycleRepository
-                        .findById(id)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Appraisal Cycle not found"));
+        // Safeguard: Stop cascading database errors if evaluations have already started within this timeline
+        if (cycle.getAppraisals() != null && !cycle.getAppraisals().isEmpty()) {
+            throw new BadRequestException("Cannot delete this appraisal cycle because it contains active employee evaluations logs");
+        }
 
-        appraisalCycleRepository
-                .delete(cycle);
+        repository.delete(cycle);
+    }
+
+    private void validateDates(AppraisalCycleRequest request) {
+        if (request.getStartDate() == null || request.getEndDate() == null) {
+            throw new BadRequestException("Start date and end date must not be null");
+        }
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
+            throw new BadRequestException("Invalid Timeline: The cycle End Date must strictly be configured to occur after its Start Date");
+        }
     }
 }
