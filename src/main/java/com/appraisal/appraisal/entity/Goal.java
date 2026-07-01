@@ -29,7 +29,7 @@ public class Goal {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private GoalStatus status = GoalStatus.NOT_STARTED;
+    private GoalStatus status = GoalStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -50,7 +50,7 @@ public class Goal {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         if (this.status == null) {
-            this.status = GoalStatus.NOT_STARTED;
+            this.status = GoalStatus.DRAFT;
         }
     }
 

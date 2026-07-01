@@ -1,21 +1,26 @@
 package com.appraisal.appraisal.service.impl;
 
-import com.appraisal.appraisal.dtos.*;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.appraisal.appraisal.dtos.AppraisalRequest;
+import com.appraisal.appraisal.dtos.AppraisalResponse;
 import com.appraisal.appraisal.entity.Appraisal;
 import com.appraisal.appraisal.entity.AppraisalCycle;
 import com.appraisal.appraisal.entity.User;
 import com.appraisal.appraisal.entity.enums.AppraisalStatus;
-import com.appraisal.appraisal.exception.*;
+import com.appraisal.appraisal.exception.BadRequestException;
+import com.appraisal.appraisal.exception.DuplicateResourceException;
+import com.appraisal.appraisal.exception.ResourceNotFoundException;
 import com.appraisal.appraisal.mapper.AppraisalMapper;
 import com.appraisal.appraisal.repository.AppraisalCycleRepository;
 import com.appraisal.appraisal.repository.AppraisalRepository;
 import com.appraisal.appraisal.repository.UserRepository;
 import com.appraisal.appraisal.service.AppraisalService;
-import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -83,8 +88,8 @@ public class AppraisalImpl implements AppraisalService {
                 .orElseThrow(() -> new ResourceNotFoundException("Appraisal file records not found with ID: " + id));
 
         // Safety: Do not allow deletion of fully finalized data logs
-        if (appraisal.getStatus() == AppraisalStatus.COMPLETED) {
-            throw new BadRequestException("Archived and Completed appraisals cannot be deleted from the corporate database system");
+        if (appraisal.getStatus() == AppraisalStatus.APPROVED) {
+            throw new BadRequestException("Archived and APPROVED appraisals cannot be deleted from the corporate database system");
         }
 
         appraisalRepository.delete(appraisal);
@@ -121,12 +126,12 @@ public class AppraisalImpl implements AppraisalService {
             throw new BadRequestException("Invalid Action Sequence: Submitted logs must transition to REVIEWED after evaluation");
         }
 
-        if (currentStatus == AppraisalStatus.REVIEWED && newStatus != AppraisalStatus.COMPLETED) {
-            throw new BadRequestException("Invalid Action Sequence: Reviewed status cards can only transition to a closed COMPLETED state");
+        if (currentStatus == AppraisalStatus.REVIEWED && newStatus != AppraisalStatus.APPROVED) {
+            throw new BadRequestException("Invalid Action Sequence: Reviewed status cards can only transition to a closed APPROVED state");
         }
 
-        if (currentStatus == AppraisalStatus.COMPLETED) {
-            throw new BadRequestException("Workflow Locked: This file tracking record has achieved COMPLETED closure status and cannot be modified");
+        if (currentStatus == AppraisalStatus.APPROVED) {
+            throw new BadRequestException("Workflow Locked: This file tracking record has achieved APPROVED closure status and cannot be modified");
         }
     }
 }

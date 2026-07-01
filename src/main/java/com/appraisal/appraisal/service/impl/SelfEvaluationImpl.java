@@ -8,6 +8,7 @@ import com.appraisal.appraisal.entity.User;
 import com.appraisal.appraisal.exception.*;
 import com.appraisal.appraisal.mapper.SelfEvaluationMapper;
 import com.appraisal.appraisal.repository.*;
+import com.appraisal.appraisal.service.NotificationEventService;
 import com.appraisal.appraisal.service.SelfEvaluationService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class SelfEvaluationImpl implements SelfEvaluationService {
     private final UserRepository userRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final SelfEvaluationMapper selfEvaluationMapper;
+    private final NotificationEventService notificationEventService;
 
     @Override
     @Transactional
@@ -56,6 +58,7 @@ public class SelfEvaluationImpl implements SelfEvaluationService {
         selfEvaluation.setAppraisalCycle(cycle);
 
         SelfEvaluation saved = selfEvaluationRepository.save(selfEvaluation);
+        notificationEventService.selfEvaluationSubmitted(saved);
         return selfEvaluationMapper.toResponse(saved);
     }
 

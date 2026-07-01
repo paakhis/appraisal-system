@@ -2,12 +2,14 @@ package com.appraisal.appraisal.service.impl;
 
 import com.appraisal.appraisal.dtos.*;
 import com.appraisal.appraisal.entity.*;
+import com.appraisal.appraisal.entity.enums.AppraisalStatus;
 import com.appraisal.appraisal.entity.enums.ReviewStatus;
 import com.appraisal.appraisal.exception.*;
 import com.appraisal.appraisal.mapper.ReviewMapper;
 import com.appraisal.appraisal.repository.AppraisalRepository;
 import com.appraisal.appraisal.repository.ReviewRepository;
 import com.appraisal.appraisal.repository.UserRepository;
+import com.appraisal.appraisal.service.NotificationEventService;
 import com.appraisal.appraisal.service.ReviewService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class ReviewImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
     private final AppraisalRepository appraisalRepository;
     private final UserRepository userRepository;
+    private final NotificationEventService notificationEventService;
 
     @Override
     @Transactional
@@ -78,8 +81,10 @@ public class ReviewImpl implements ReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException("Performance review record not found with ID: " + id));
 
         // Safeguard: Lock down updates if the review has already been finalized
-        if (existingReview.getStatus() == ReviewStatus.SUBMITTED) {
-            throw new BadRequestException("Workflow Locked: This evaluation has been finalized and submitted and cannot be modified");
+        if (existingReview.getStatus() == ReviewStatus.APPROVED) {
+            throw new BadRequestException(
+                    "Approved reviews cannot be modified"
+            );
         }
 
         existingReview.setPerformanceRating(request.getPerformanceRating());
@@ -89,14 +94,37 @@ public class ReviewImpl implements ReviewService {
 
         // Update workflow states dynamically if passed in payload parameter
         if (request.getStatus() != null && !request.getStatus().trim().isBlank()) {
-            try {
-                existingReview.setStatus(ReviewStatus.valueOf(request.getStatus().trim().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("Invalid standard corporate review pipeline status: " + request.getStatus());
+
+            ReviewStatus newStatus =
+                    ReviewStatus.valueOf(request.getStatus().trim().toUpperCase());
+
+            existingReview.setStatus(newStatus);
+
+            Appraisal appraisal = existingReview.getAppraisal();
+
+            switch (newStatus) {
+                case DRAFT:
+                    appraisal.setStatus(AppraisalStatus.DRAFT);
+                    break;
+
+                case SUBMITTED:
+                    appraisal.setStatus(AppraisalStatus.SUBMITTED);
+                    break;
+
+                case APPROVED:
+                    appraisal.setStatus(AppraisalStatus.APPROVED);
+                    break;
             }
+
+            appraisalRepository.save(appraisal);
         }
 
         Review updated = reviewRepository.save(existingReview);
+
+        if (updated.getStatus() == ReviewStatus.APPROVED) {
+            notificationEventService.reviewFinalized(updated);
+        }
+
         return ReviewMapper.toResponse(updated);
     }
 

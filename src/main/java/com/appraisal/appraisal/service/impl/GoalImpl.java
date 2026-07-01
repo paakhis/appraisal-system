@@ -13,6 +13,7 @@ import com.appraisal.appraisal.repository.AppraisalCycleRepository;
 import com.appraisal.appraisal.repository.GoalRepository;
 import com.appraisal.appraisal.repository.UserRepository;
 import com.appraisal.appraisal.service.GoalService;
+import com.appraisal.appraisal.service.NotificationEventService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class GoalImpl implements GoalService {
     private final UserRepository userRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final GoalMapper goalMapper;
+    private final NotificationEventService notificationEventService;
 
     @Override
     @Transactional
@@ -52,9 +54,10 @@ public class GoalImpl implements GoalService {
         goal.setTargetDate(request.getTargetDate());
         goal.setUser(user);
         goal.setAppraisalCycle(cycle);
-        goal.setStatus(GoalStatus.NOT_STARTED);
+        goal.setStatus(GoalStatus.DRAFT);
 
         Goal savedGoal = goalRepository.save(goal);
+        notificationEventService.goalAssigned(savedGoal);
         return goalMapper.toResponse(savedGoal);
     }
 
@@ -70,6 +73,83 @@ public class GoalImpl implements GoalService {
     public GoalResponse getGoalById(Long id) {
         Goal goal = goalRepository.findByIdWithRelationships(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Goal metric file not found with ID: " + id));
+        return goalMapper.toResponse(goal);
+    }
+
+    @Override
+    @Transactional
+    public GoalResponse submitGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Goal not found"));
+
+        if (goal.getStatus() != GoalStatus.DRAFT && goal.getStatus() != GoalStatus.DRAFT) {
+            throw new BadRequestException("Only DRAFT or SUBMITTED goals can be submitted");
+        }
+
+        goal.setStatus(GoalStatus.SUBMITTED);
+        goalRepository.save(goal);
+        return goalMapper.toResponse(goal);
+    }
+
+    @Override
+    @Transactional
+    public GoalResponse acknowledgeGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Goal not found"));
+
+        if (goal.getStatus() != GoalStatus.SUBMITTED) {
+            throw new BadRequestException("Only ASSIGNED goals can be acknowledged");
+        }
+
+        goal.setStatus(GoalStatus.ACKNOWLEDGED);
+        goalRepository.save(goal);
+        return goalMapper.toResponse(goal);
+    }
+
+    @Override
+    @Transactional
+    public GoalResponse completeGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Goal not found"));
+
+        if (goal.getStatus() != GoalStatus.ACKNOWLEDGED) {
+            throw new BadRequestException("Only ACKNOWLEDGED goals can be completed");
+        }
+
+        goal.setStatus(GoalStatus.COMPLETED);
+        goalRepository.save(goal);
+        return goalMapper.toResponse(goal);
+    }
+
+    @Override
+    @Transactional
+    public GoalResponse approveGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Goal not found"));
+
+        if (goal.getStatus() != GoalStatus.COMPLETED) {
+            throw new BadRequestException("Only COMPLETED goals can be approved");
+        }
+
+        goal.setStatus(GoalStatus.APPROVED);
+        goalRepository.save(goal);
+        notificationEventService.goalApproved(goal);
+        return goalMapper.toResponse(goal);
+    }
+
+    @Override
+    @Transactional
+    public GoalResponse rejectGoal(Long id) {
+        Goal goal = goalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Goal not found"));
+
+        if (goal.getStatus() != GoalStatus.COMPLETED) {
+            throw new BadRequestException("Only COMPLETED goals can be rejected");
+        }
+
+        goal.setStatus(GoalStatus.REJECTED);
+        goalRepository.save(goal);
+        notificationEventService.goalRejected(goal);
         return goalMapper.toResponse(goal);
     }
 
@@ -100,7 +180,7 @@ public class GoalImpl implements GoalService {
         // Update target status transitions dynamically if passed in payload parameter
         if (request.getStatus() != null && !request.getStatus().trim().isBlank()) {
             try {
-                existingGoal.setStatus(GoalStatus.valueOf(request.getStatus().trim().toUpperCase()));
+                existingGoal.setStatus(normalizeGoalStatus(request.getStatus()));
             } catch (IllegalArgumentException e) {
                 throw new BadRequestException("Invalid standard corporate goal status tracking value provided: " + request.getStatus());
             }
@@ -116,6 +196,19 @@ public class GoalImpl implements GoalService {
         Goal goal = goalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Goal metric file not found with ID: " + id));
         goalRepository.delete(goal);
+    }
+
+    private GoalStatus normalizeGoalStatus(String status) {
+        if (status == null || status.trim().isBlank()) {
+            return GoalStatus.DRAFT;
+        }
+
+        String normalized = status.trim().toUpperCase();
+        if ("SUBMITTED".equals(normalized)) {
+            return GoalStatus.SUBMITTED;
+        }
+
+        return GoalStatus.valueOf(normalized);
     }
 
     private void validateGoalTimeline(LocalDate targetDate, AppraisalCycle cycle) {

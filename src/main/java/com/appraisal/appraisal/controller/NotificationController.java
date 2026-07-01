@@ -37,4 +37,16 @@ public class NotificationController {
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
         return ResponseEntity.ok(notificationService.markAsRead(id));
     }
+
+    @PatchMapping("/user/{userId}/read-all")
+    public ResponseEntity<Void> markAllAsRead(@PathVariable Long userId) {
+        notificationService.markAllAsRead(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.noContent().build();
+    }
 }

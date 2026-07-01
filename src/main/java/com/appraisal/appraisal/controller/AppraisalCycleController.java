@@ -13,7 +13,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/appraisal-cycles")
+@RequestMapping("/api/appraisal-cycles")
 public class AppraisalCycleController {
 
     private final AppraisalCycleService service;

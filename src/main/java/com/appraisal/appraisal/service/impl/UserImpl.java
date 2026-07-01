@@ -31,6 +31,10 @@ public class UserImpl implements UserService {
             throw new BadRequestException("Request body cannot be null");
         }
 
+        if (!hasText(request.getPassword())) {
+            throw new BadRequestException("Password cannot be empty");
+        }
+
         String normalizedEmail = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new DuplicateResourceException("User with email '" + normalizedEmail + "' already exists");
@@ -122,7 +126,9 @@ public class UserImpl implements UserService {
     // A robust mapping utility method that catches Enum parsing failures gracefully
     private void mapRequestToEntity(UserRequest request, User user, Department department, User manager) {
         user.setName(request.getName().trim());
-        user.setPassword(request.getPassword());
+        if (hasText(request.getPassword())) {
+            user.setPassword(request.getPassword().trim());
+        }
         user.setDesignation(request.getDesignation().trim());
         user.setDepartment(department);
         user.setManager(manager);
@@ -132,5 +138,9 @@ public class UserImpl implements UserService {
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new BadRequestException("Invalid system role type standard provided: " + request.getRoles());
         }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }
