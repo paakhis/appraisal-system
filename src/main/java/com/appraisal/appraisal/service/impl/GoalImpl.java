@@ -2,6 +2,7 @@ package com.appraisal.appraisal.service.impl;
 
 import com.appraisal.appraisal.dtos.GoalRequest;
 import com.appraisal.appraisal.dtos.GoalResponse;
+import com.appraisal.appraisal.dtos.NotificationRequest;
 import com.appraisal.appraisal.entity.AppraisalCycle;
 import com.appraisal.appraisal.entity.Goal;
 import com.appraisal.appraisal.entity.User;
@@ -13,7 +14,7 @@ import com.appraisal.appraisal.repository.AppraisalCycleRepository;
 import com.appraisal.appraisal.repository.GoalRepository;
 import com.appraisal.appraisal.repository.UserRepository;
 import com.appraisal.appraisal.service.GoalService;
-import com.appraisal.appraisal.service.NotificationEventService;
+import com.appraisal.appraisal.service.NotificationService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class GoalImpl implements GoalService {
     private final UserRepository userRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final GoalMapper goalMapper;
-    private final NotificationEventService notificationEventService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -57,8 +58,28 @@ public class GoalImpl implements GoalService {
         goal.setStatus(GoalStatus.DRAFT);
 
         Goal savedGoal = goalRepository.save(goal);
-        notificationEventService.goalAssigned(savedGoal);
+
+        notifyGoalCreated(savedGoal, user);
+
         return goalMapper.toResponse(savedGoal);
+    }
+
+    private void notifyGoalCreated(Goal goal, User user) {
+        notificationService.sendNotification(new NotificationRequest(
+                user.getId(),
+                "Goal Created",
+                "Your goal '" + goal.getTitle() + "' has been created successfully.",
+                "GOAL"
+        ));
+
+        if (user.getManager() != null) {
+            notificationService.sendNotification(new NotificationRequest(
+                    user.getManager().getId(),
+                    "New Goal Submitted",
+                    user.getName() + " has created a new goal: '" + goal.getTitle() + "'.",
+                    "GOAL"
+            ));
+        }
     }
 
     @Override
@@ -133,7 +154,6 @@ public class GoalImpl implements GoalService {
 
         goal.setStatus(GoalStatus.APPROVED);
         goalRepository.save(goal);
-        notificationEventService.goalApproved(goal);
         return goalMapper.toResponse(goal);
     }
 
@@ -149,7 +169,6 @@ public class GoalImpl implements GoalService {
 
         goal.setStatus(GoalStatus.REJECTED);
         goalRepository.save(goal);
-        notificationEventService.goalRejected(goal);
         return goalMapper.toResponse(goal);
     }
 

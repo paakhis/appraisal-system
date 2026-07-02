@@ -9,7 +9,6 @@ import com.appraisal.appraisal.mapper.ReviewMapper;
 import com.appraisal.appraisal.repository.AppraisalRepository;
 import com.appraisal.appraisal.repository.ReviewRepository;
 import com.appraisal.appraisal.repository.UserRepository;
-import com.appraisal.appraisal.service.NotificationEventService;
 import com.appraisal.appraisal.service.ReviewService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,6 @@ public class ReviewImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
     private final AppraisalRepository appraisalRepository;
     private final UserRepository userRepository;
-    private final NotificationEventService notificationEventService;
 
     @Override
     @Transactional
@@ -120,11 +118,6 @@ public class ReviewImpl implements ReviewService {
         }
 
         Review updated = reviewRepository.save(existingReview);
-
-        if (updated.getStatus() == ReviewStatus.APPROVED) {
-            notificationEventService.reviewFinalized(updated);
-        }
-
         return ReviewMapper.toResponse(updated);
     }
 

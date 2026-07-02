@@ -70,23 +70,4 @@ public class NotificationImpl implements NotificationService {
         Notification updated = notificationRepository.save(notification);
         return NotificationMapper.toResponse(updated);
     }
-
-    @Override
-    @Transactional
-    public void markAllAsRead(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User not found with ID: " + userId);
-        }
-        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalseWithRelationships(userId);
-        unread.forEach(n -> n.setIsRead(true));
-        notificationRepository.saveAll(unread);
-    }
-
-    @Override
-    @Transactional
-    public void deleteNotification(Long notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + notificationId));
-        notificationRepository.delete(notification);
-    }
 }

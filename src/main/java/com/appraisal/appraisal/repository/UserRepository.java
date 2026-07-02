@@ -1,6 +1,7 @@
 package com.appraisal.appraisal.repository;
 
 import com.appraisal.appraisal.entity.User;
+import com.appraisal.appraisal.entity.enums.Roles;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.department LEFT JOIN FETCH u.manager WHERE u.id = :id")
     Optional<User> findByIdWithRelationships(@Param("id") Long id);
 
-    // Checks if any employee reports directly to this manager before deletion
+    // Checks if any employee reports directly to this manager before d
+    //
+     @Query("SELECT u FROM User u WHERE u.roles = :role")
+    List<User> findByRole(@Param("role") Roles role);
     boolean existsByManagerId(Long managerId);
 }
