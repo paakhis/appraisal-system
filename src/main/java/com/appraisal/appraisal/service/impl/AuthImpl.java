@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.service.impl;
 
+import com.appraisal.appraisal.config.security.JwtUtil;
 import com.appraisal.appraisal.dtos.LoginRequest;
 import com.appraisal.appraisal.dtos.LoginResponse;
 import com.appraisal.appraisal.entity.User;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class AuthImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -28,11 +30,14 @@ public class AuthImpl implements AuthService {
             throw new RuntimeException("Invalid credentials");
         }
 
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRoles().name());
+
         return new LoginResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRoles().name()
+                user.getRoles().name(),
+                token
         );
     }
 }
