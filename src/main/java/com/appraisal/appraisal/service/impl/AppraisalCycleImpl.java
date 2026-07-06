@@ -1,28 +1,21 @@
 package com.appraisal.appraisal.service.impl;
 
-import java.util.List;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.appraisal.appraisal.dtos.AppraisalCycleRequest;
 import com.appraisal.appraisal.dtos.AppraisalCycleResponse;
 import com.appraisal.appraisal.dtos.NotificationRequest;
 import com.appraisal.appraisal.entity.AppraisalCycle;
 import com.appraisal.appraisal.entity.User;
-import com.appraisal.appraisal.exception.BadRequestException;
-import com.appraisal.appraisal.exception.DuplicateResourceException;
-import com.appraisal.appraisal.exception.ResourceNotFoundException;
 import com.appraisal.appraisal.mapper.AppraisalCycleMapper;
 import com.appraisal.appraisal.repository.AppraisalCycleRepository;
 import com.appraisal.appraisal.repository.UserRepository;
 import com.appraisal.appraisal.service.AppraisalCycleService;
 import com.appraisal.appraisal.service.NotificationService;
-import com.appraisal.appraisal.entity.Appraisal;
-import com.appraisal.appraisal.entity.enums.AppraisalStatus;
-import com.appraisal.appraisal.entity.enums.Roles;
-import com.appraisal.appraisal.repository.AppraisalRepository;
+import com.appraisal.appraisal.exception.*;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +26,6 @@ public class AppraisalCycleImpl implements AppraisalCycleService {
     private final AppraisalCycleMapper mapper;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    private final AppraisalRepository appraisalRepository;
 
     @Override
     @Transactional
@@ -59,12 +51,9 @@ public class AppraisalCycleImpl implements AppraisalCycleService {
 
         AppraisalCycle savedCycle = repository.save(cycle);
 
-// Automatically create appraisal records
-createAppraisalsForEmployees(savedCycle);
+        notifyCycleCreated(savedCycle);
 
-notifyCycleCreated(savedCycle);
-
-return mapper.toResponse(savedCycle);
+        return mapper.toResponse(savedCycle);
     }
 
     private void notifyCycleCreated(AppraisalCycle cycle) {
@@ -147,36 +136,4 @@ return mapper.toResponse(savedCycle);
             throw new BadRequestException("Invalid Timeline: The cycle End Date must strictly be configured to occur after its Start Date");
         }
     }
-
-    private void createAppraisalsForEmployees(AppraisalCycle cycle) {
-
-    List<User> employees = userRepository.findAll()
-            .stream()
-            .filter(user -> user.getRoles() == Roles.EMPLOYEE)
-            .toList();
-
-    for (User employee : employees) {
-
-        // Employee must have a manager
-        if (employee.getManager() == null) {
-            continue;
-        }
-
-        // Skip if appraisal already exists
-        if (appraisalRepository.existsByEmployeeIdAndCycleId(
-                employee.getId(),
-                cycle.getId())) {
-            continue;
-        }
-
-        Appraisal appraisal = new Appraisal();
-
-        appraisal.setEmployee(employee);
-        appraisal.setManager(employee.getManager());
-        appraisal.setCycle(cycle);
-        appraisal.setStatus(AppraisalStatus.DRAFT);
-
-        appraisalRepository.save(appraisal);
-    }
-}
 }

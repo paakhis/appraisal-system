@@ -36,7 +36,7 @@ export const TeamPage = () => {
         </div>
       </div>
 
-      {filtered.length === 0 ? <EmptyState message="No team members found." icon="" /> : (
+      {filtered.length === 0 ? <EmptyState message="No team members found." icon="👥" /> : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filtered.map(m => (
             <div key={m.id} className="card hover:border-[#D6E4FF] transition-colors flex items-start gap-4">

@@ -54,7 +54,7 @@ export const GoalsPage = () => {
       </div>
 
       {/* Goals list */}
-      {goals.length === 0 ? <EmptyState message="No assigned goals yet." icon="" /> : (
+      {goals.length === 0 ? <EmptyState message="No assigned goals yet." icon="🎯" /> : (
         <div className="space-y-3">
           {goals.map(g => (
             <div key={g.id} className="card flex items-start gap-4 hover:border-[#D6E4FF] transition-colors">

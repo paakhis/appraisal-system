@@ -11,6 +11,8 @@ import com.appraisal.appraisal.repository.UserRepository;
 import com.appraisal.appraisal.service.NotificationService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -69,5 +71,43 @@ public class NotificationImpl implements NotificationService {
         notification.setIsRead(true);
         Notification updated = notificationRepository.save(notification);
         return NotificationMapper.toResponse(updated);
+    }
+
+    @Override
+@Transactional
+public void markAllAsRead(Long userId) {
+
+    if (!userRepository.existsById(userId)) {
+        throw new ResourceNotFoundException("User not found");
+    }
+
+    notificationRepository.markAllAsRead(userId);
+}
+
+    @Override
+    public List<NotificationResponse> getLatestNotifications(Long userId) {
+
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        return notificationRepository
+                .findTop5ByUserIdOrderByCreatedAtDesc(
+                        userId,
+                        PageRequest.of(0, 5)
+                )
+                .stream()
+                .map(NotificationMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public long getUnreadCount(Long userId) {
+
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 }

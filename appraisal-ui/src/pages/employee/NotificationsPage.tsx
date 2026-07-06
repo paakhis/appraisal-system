@@ -26,11 +26,11 @@ export const NotificationsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Notifications</h1>
-          {/* <p className="text-sm text-gray-500 mt-0.5">{notifs.filter(n => !n.isRead).length} unread</p> */}
+          <p className="text-sm text-gray-500 mt-0.5">{notifs.filter(n => !n.isRead).length} unread</p>
         </div>
       </div>
 
-      {notifs.length === 0 ? <EmptyState message="No notifications yet." icon="" /> : (
+      {notifs.length === 0 ? <EmptyState message="No notifications yet." icon="🔔" /> : (
         <div className="space-y-3">
           {notifs.map(n => (
             <div key={n.id} onClick={() => !n.isRead && handleRead(n.id)}

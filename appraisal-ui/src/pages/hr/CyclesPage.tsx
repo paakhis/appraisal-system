@@ -82,7 +82,7 @@ export const CyclesPage = () => {
         </div>
       )}
 
-      {cycles.length === 0 ? <EmptyState message="No appraisal cycles found." icon=""/> : (
+      {cycles.length === 0 ? <EmptyState message="No appraisal cycles found." icon="📅"/> : (
         <div className="space-y-3">
           {cycles.map(c => (
             <div key={c.id} className="card flex items-center gap-4 hover:border-[#D6E4FF] transition-colors">

@@ -1,6 +1,8 @@
 package com.appraisal.appraisal.entity;
 
 import com.appraisal.appraisal.entity.enums.Roles;
+import com.appraisal.appraisal.entity.enums.UserStatus;
+import jakarta.annotation.Resource;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -59,9 +61,15 @@ public class User {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status = UserStatus.ACTIVE;
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+//    public Resource getRole() {
+//    }
 }

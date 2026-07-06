@@ -1,7 +1,6 @@
 package com.appraisal.appraisal.service.impl;
 
-import com.appraisal.appraisal.dtos.UserRequest;
-import com.appraisal.appraisal.dtos.UserResponse;
+import com.appraisal.appraisal.dtos.*;
 import com.appraisal.appraisal.entity.Department;
 import com.appraisal.appraisal.entity.User;
 import com.appraisal.appraisal.exception.*;
@@ -9,10 +8,13 @@ import com.appraisal.appraisal.mapper.UserMapper;
 import com.appraisal.appraisal.repository.*;
 import com.appraisal.appraisal.service.UserService;
 import com.appraisal.appraisal.entity.enums.Roles;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -23,12 +25,70 @@ public class UserImpl implements UserService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final UserMapper userMapper;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional
     public UserResponse createUser(UserRequest request) {
+        return persistUser(request);
+    }
+
+    @Override
+    public BulkUserUploadResult createUsersBulk(List<UserRequest> requests) {
+        List<BulkCreatedUser> created = new ArrayList<>();
+        List<BulkUploadRowError> errors = new ArrayList<>();
+
+        if (requests == null || requests.isEmpty()) {
+            throw new BadRequestException("No employees provided for bulk upload");
+        }
+
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        txTemplate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        for (int i = 0; i < requests.size(); i++) {
+            UserRequest request = requests.get(i);
+            int rowNumber = i + 1;
+            try {
+                UserResponse response = txTemplate.execute(status -> persistUser(request));
+
+                created.add(new BulkCreatedUser(
+                        response,
+                        null
+                ));
+            } catch (RuntimeException ex) {
+                String email = (request != null && request.getEmail() != null) ? request.getEmail() : "";
+                errors.add(new BulkUploadRowError(rowNumber, email, ex.getMessage()));
+            }
+        }
+
+        return new BulkUserUploadResult(
+                requests.size(),
+                created.size(),
+                errors.size(),
+                created,
+                errors
+        );
+    }
+
+    private UserResponse persistUser(UserRequest request) {
         if (request == null) {
             throw new BadRequestException("Request body cannot be null");
+        }
+
+        if (!hasText(request.getName())) {
+            throw new BadRequestException("Name cannot be empty");
+        }
+        if (!hasText(request.getEmail())) {
+            throw new BadRequestException("Email cannot be empty");
+        }
+        if (!hasText(request.getDesignation())) {
+            throw new BadRequestException("Designation cannot be empty");
+        }
+        if (!hasText(request.getRoles())) {
+            throw new BadRequestException("Role cannot be empty");
+        }
+        if (request.getDepartmentId() == null) {
+            throw new BadRequestException("Department is required");
         }
 
         if (!hasText(request.getPassword())) {

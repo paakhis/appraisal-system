@@ -33,7 +33,7 @@ export const ReviewsPage = () => {
         <p className="text-sm text-gray-500 mt-0.5">Manager reviews of your performance</p>
       </div>
 
-      {reviews.length === 0 ? <EmptyState message="No reviews yet from your manager." icon="" /> : (
+      {reviews.length === 0 ? <EmptyState message="No reviews yet from your manager." icon="📝" /> : (
         <div className="space-y-4">
           {reviews.map(r => (
             <div key={r.id} className="card hover:border-[#D6E4FF] transition-colors">
@@ -65,13 +65,13 @@ export const ReviewsPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 {r.strengths && (
                   <div className="bg-green-50 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-green-600 mb-1">Strengths</p>
+                    <p className="text-xs font-semibold text-green-600 mb-1">✅ Strengths</p>
                     <p className="text-sm text-gray-700 whitespace-pre-line">{r.strengths}</p>
                   </div>
                 )}
                 {r.improvements && (
                   <div className="bg-yellow-50 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-yellow-600 mb-1">Areas to Improve</p>
+                    <p className="text-xs font-semibold text-yellow-600 mb-1">📈 Areas to Improve</p>
                     <p className="text-sm text-gray-700 whitespace-pre-line">{r.improvements}</p>
                   </div>
                 )}

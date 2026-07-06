@@ -84,7 +84,7 @@ export const AppraisalsPage = () => {
         </div>
       )}
 
-      {appraisals.length === 0 ? <EmptyState message="No appraisals yet." icon=""/> : (
+      {appraisals.length === 0 ? <EmptyState message="No appraisals yet." icon="📋"/> : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full">
             <thead><tr>

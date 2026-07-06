@@ -7,3 +7,9 @@ export interface UserResponse {
   departmentId: number; departmentName: string; managerId?: number; managerName?: string;
   createdAt: string; updatedAt: string;
 }
+export interface BulkUserError {
+  row: number; email: string; message: string;
+}
+export interface BulkUserResponse {
+  created: UserResponse[]; errors: BulkUserError[];
+}

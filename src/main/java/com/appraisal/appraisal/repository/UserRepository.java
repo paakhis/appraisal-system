@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByEmailIgnoreCase(String email);
+
+    List<User> findByRoles(Roles roles);
     // Dynamic fetch joins pull user, department, and manager variables in 1 database trip
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.department LEFT JOIN FETCH u.manager")
     List<User> findAllWithRelationships();
@@ -23,9 +26,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.department LEFT JOIN FETCH u.manager WHERE u.id = :id")
     Optional<User> findByIdWithRelationships(@Param("id") Long id);
 
-    // Checks if any employee reports directly to this manager before d
-    //
-     @Query("SELECT u FROM User u WHERE u.roles = :role")
-    List<User> findByRole(@Param("role") Roles role);
+    // Checks if any employee reports directly to this manager before deletion
     boolean existsByManagerId(Long managerId);
 }

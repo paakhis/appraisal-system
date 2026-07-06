@@ -83,25 +83,6 @@ public class AppraisalImpl implements AppraisalService {
 
     @Override
     @Transactional
-    public AppraisalResponse updateSelfRating(Long id, Double selfRating) {
-        if (selfRating == null) {
-            throw new BadRequestException("Self rating value is required");
-        }
-
-        if (selfRating < 1 || selfRating > 5) {
-            throw new BadRequestException("Self rating must be between 1 and 5");
-        }
-
-        Appraisal appraisal = appraisalRepository.findByIdWithRelationships(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Appraisal records not found with ID: " + id));
-
-        appraisal.setSelfRating(selfRating);
-        Appraisal updated = appraisalRepository.save(appraisal);
-        return AppraisalMapper.toResponse(updated);
-    }
-
-    @Override
-    @Transactional
     public void deleteAppraisal(Long id) {
         Appraisal appraisal = appraisalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appraisal file records not found with ID: " + id));

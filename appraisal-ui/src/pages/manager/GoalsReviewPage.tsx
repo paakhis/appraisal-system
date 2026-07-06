@@ -365,7 +365,7 @@ export const GoalsReviewPage = () => {
             {goals.length === 0 ? (
                 <EmptyState
                     message="No team goals found."
-                    icon=""
+                    icon="🎯"
                 />
             ) : (
                 <div className="space-y-3">

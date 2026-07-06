@@ -147,8 +147,7 @@ public class NotificationEventServiceImpl implements NotificationEventService {
     @Override
     public void reviewSubmittedToHr(Review review) {
 
-        List<User> hrUsers = userRepository.   findByRole(Roles.HR);
-
+        List<User> hrUsers = userRepository.findByRoles(Roles.MANAGER);
         if (hrUsers.isEmpty()) {
             return;
         }

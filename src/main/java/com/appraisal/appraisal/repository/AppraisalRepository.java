@@ -1,14 +1,13 @@
 package com.appraisal.appraisal.repository;
 
-import java.util.List;
-import java.util.Optional;
-
+import com.appraisal.appraisal.entity.Appraisal;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.appraisal.appraisal.entity.Appraisal;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppraisalRepository extends JpaRepository<Appraisal, Long> {
@@ -25,12 +24,4 @@ public interface AppraisalRepository extends JpaRepository<Appraisal, Long> {
 
     List<Appraisal> findByEmployeeId(Long employeeId);
     List<Appraisal> findByCycleId(Long cycleId);
-
-    @Query("""
-       SELECT a
-       FROM Appraisal a
-       WHERE a.employee.id = :employeeId
-       AND a.cycle.id = :cycleId
-       """)
-Optional<Appraisal> findByEmployeeIdAndCycleId(Long employeeId, Long cycleId);
 }

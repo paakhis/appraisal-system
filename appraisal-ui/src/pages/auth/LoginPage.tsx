@@ -51,6 +51,7 @@ export default function Login() {
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0E4CB7] text-3xl text-white">
+              📊
             </div>
           </div>
           <h1 className="text-4xl font-bold text-slate-800">Elevate</h1>

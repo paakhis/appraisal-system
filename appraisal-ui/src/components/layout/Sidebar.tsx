@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
-  LayoutDashboard, Users, Target, Star, Bell, User, Building2,
+  LayoutDashboard, Users, Target, Star, User, Building2,
   RefreshCcw, ClipboardList, FileBarChart, ChevronLeft, ChevronRight, LogOut, UserCheck, BookOpen
 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const employeeLinks = [
 const managerLinks = [
   { to: '/manager/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/manager/team', label: 'Team Members', icon: Users },
-  { to: '/manager/reviews', label: 'Appraisal Reviews', icon: ClipboardList },
+  { to: '/manager/reviews', label: 'Pending Reviews', icon: ClipboardList },
   { to: '/manager/reports', label: 'Team Reports', icon: FileBarChart},
   { to: '/manager/goals', label: 'Goals Review', icon: Target },
   // { to: '/manager/cycles', label: 'Appraisal Cycles', icon: RefreshCcw },

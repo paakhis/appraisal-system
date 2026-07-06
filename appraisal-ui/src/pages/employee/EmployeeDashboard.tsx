@@ -8,7 +8,6 @@ import type { GoalResponse } from '../../interfaces/goal';
 import type { ReviewResponse } from '../../interfaces/review';
 import { StatusBadge } from '../../components/common/Badge';
 import { Spinner } from '../../components/common/Spinner';
-import { RatingStars } from '../../components/common/RatingStars';
 import { User, Building2, UserCheck } from 'lucide-react';
 
 export const EmployeeDashboard = () => {
@@ -95,11 +94,10 @@ export const EmployeeDashboard = () => {
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">
             Self Rating
           </p>
-          {appraisal?.selfRating ? (
-            <div className="flex items-center gap-2">
-              <RatingStars value={appraisal.selfRating} showValue={false} size={18} />
-              <span className="text-2xl font-bold text-[#0E4CB7]">{appraisal.selfRating}/5</span>
-            </div>
+          {review?.performanceRating ? (
+            <h3 className="text-3xl font-bold text-[#0E4CB7]">
+              {review.performanceRating}/5
+            </h3>
           ) : (
             <p className="text-2xl font-bold text-[#0E4CB7]">
               Pending
@@ -111,11 +109,10 @@ export const EmployeeDashboard = () => {
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">
             Manager Rating
           </p>
-          {(appraisal?.managerRating ?? review?.performanceRating) ? (
-            <div className="flex items-center gap-2">
-              <RatingStars value={appraisal?.managerRating ?? review?.performanceRating ?? null} showValue={false} size={18} />
-              <span className="text-2xl font-bold text-[#0E4CB7]">{appraisal?.managerRating ?? review?.performanceRating ?? 0}/5</span>
-            </div>
+          {review?.performanceRating ? (
+            <h3 className="text-3xl font-bold text-[#0E4CB7]">
+              {review.performanceRating}/5
+            </h3>
           ) : (
             <p className="text-2xl font-bold text-[#0E4CB7]">
               Pending
@@ -176,26 +173,22 @@ export const EmployeeDashboard = () => {
                     <p className="text-xs text-gray-400 uppercase">
                       Self Rating
                     </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <RatingStars value={appraisal?.selfRating ?? null} showValue={false} size={16} />
-                      <p className="text-lg font-semibold text-[#0E4CB7]">
-                        {appraisal?.selfRating ? `${appraisal.selfRating}/5` : 'Pending'}
-                      </p>
-                    </div>
+                    <p className="text-lg font-semibold text-[#0E4CB7]">
+                      {review?.performanceRating
+                        ? `${review.performanceRating}/5`
+                        : 'Pending'}
+                    </p>
                   </div>
 
                   <div>
                     <p className="text-xs text-gray-400 uppercase">
                       Final Rating
                     </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <RatingStars value={appraisal?.managerRating ?? review?.performanceRating ?? null} showValue={false} size={16} />
-                      <p className="text-lg font-semibold text-[#0E4CB7]">
-                        {(appraisal?.managerRating ?? review?.performanceRating)
-                          ? `${appraisal?.managerRating ?? review?.performanceRating}/5`
-                          : 'Pending'}
-                      </p>
-                    </div>
+                    <p className="text-lg font-semibold text-[#0E4CB7]">
+                      {review?.performanceRating
+                        ? `${review.performanceRating}/5`
+                        : 'Pending'}
+                    </p>
                   </div>
                 </div>
 
@@ -227,16 +220,7 @@ export const EmployeeDashboard = () => {
           ) : (
             <div className="space-y-4">
               {goals
-                .filter(
-                  goal =>
-                    goal.status !== 'COMPLETED' &&
-                    goal.status !== 'APPROVED'
-                )
-                .sort(
-                  (a, b) =>
-                    new Date(a.targetDate).getTime() -
-                    new Date(b.targetDate).getTime()
-                )
+                .filter(g => g.status !== 'APPROVED')
                 .slice(0, 5)
                 .map(goal => (
                   <div

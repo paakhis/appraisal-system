@@ -14,7 +14,7 @@ export const ManagerCyclesPage = () => {
   return (
     <div className="max-w-3xl space-y-5">
       <h1 className="text-xl font-bold text-gray-900">Appraisal Cycles</h1>
-      {cycles.length === 0 ? <EmptyState message="No cycles found." icon=""/> : (
+      {cycles.length === 0 ? <EmptyState message="No cycles found." icon="📅"/> : (
         <div className="space-y-3">
           {cycles.map(c => (
             <div key={c.id} className="card flex items-center gap-4 hover:border-[#D6E4FF] transition-colors">

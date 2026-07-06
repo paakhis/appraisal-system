@@ -37,4 +37,31 @@ public class NotificationController {
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
         return ResponseEntity.ok(notificationService.markAsRead(id));
     }
+
+    @GetMapping("/user/{userId}/latest")
+public ResponseEntity<List<NotificationResponse>> latest(
+        @PathVariable Long userId){
+
+    return ResponseEntity.ok(
+            notificationService.getLatestNotifications(userId)
+    );
+}
+
+@GetMapping("/user/{userId}/count")
+public ResponseEntity<Long> unreadCount(
+        @PathVariable Long userId){
+
+    return ResponseEntity.ok(
+            notificationService.getUnreadCount(userId)
+    );
+}
+
+@PatchMapping("/user/{userId}/read-all")
+public ResponseEntity<Void> markAll(
+        @PathVariable Long userId){
+
+    notificationService.markAllAsRead(userId);
+
+    return ResponseEntity.noContent().build();
+}
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllReviews, createReview, updateReview } from '../../api/reviewApi';
-import { getAllAppraisals } from '../../api/appraisalApi';
+import { getAllAppraisals, updateAppraisalStatus } from '../../api/appraisalApi';
 import { getAllSelfEvals } from '../../api/selfEvalApi';
 import type { ReviewResponse } from '../../interfaces/review';
 import type { AppraisalResponse } from '../../interfaces/appraisal';
@@ -9,8 +9,22 @@ import type { SelfEvaluationResponse } from '../../interfaces/selfEval';
 import { StatusBadge } from '../../components/common/Badge';
 import { Spinner } from '../../components/common/Spinner';
 import { EmptyState } from '../../components/common/EmptyState';
-import { RatingStars } from '../../components/common/RatingStars';
-import { X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Modal } from '../../components/common/Modal';
+import { Star, AlertCircle } from 'lucide-react';
+
+const StarRating = ({ value }: { value?: number | null }) => {
+  if (value == null) return <span className="text-xs text-gray-400">—</span>;
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(v => (
+        <Star key={v} size={14} className={v <= value ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
+      ))}
+      <span className="ml-1 text-xs text-gray-500">{value}/5</span>
+    </div>
+  );
+};
+
+const REVIEWED_STATUSES = ['REVIEWED', 'APPROVED'];
 
 export const PendingReviewsPage = () => {
   const { user } = useAuth();
@@ -20,148 +34,144 @@ export const PendingReviewsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const [target, setTarget] = useState<AppraisalResponse | null>(null);
-  const [managerRating, setManagerRating] = useState(0);
+  const [rating, setRating] = useState(0);
   const [comments, setComments] = useState('');
   const [strengths, setStrengths] = useState('');
   const [improvements, setImprovements] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const load = async () => {
+  const load = () => {
     setLoading(true);
-    try {
-      const [revs, apps, evals] = await Promise.all([getAllReviews(), getAllAppraisals(), getAllSelfEvals()]);
-      setReviews(revs);
-      setAppraisals(apps.filter(a => a.managerId === user?.id && a.status !== 'DRAFT'));
-      setSelfEvals(evals);
-    } finally {
-      setLoading(false);
-    }
+    Promise.all([getAllAppraisals(), getAllReviews(), getAllSelfEvals()])
+      .then(([apps, revs, evals]) => {
+        setAppraisals(apps.filter(a => a.managerId === user?.id));
+        setReviews(revs.filter(r => r.managerId === user?.id));
+        setSelfEvals(evals);
+      })
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load().catch(() => setLoading(false)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
+
+  const pendingReview = useMemo(
+    () => appraisals.filter(a => a.status === 'SUBMITTED'),
+    [appraisals]
+  );
+  const completedReview = useMemo(
+    () => appraisals.filter(a => REVIEWED_STATUSES.includes(a.status)),
+    [appraisals]
+  );
 
   const reviewFor = (appraisalId: number) => reviews.find(r => r.appraisalId === appraisalId) || null;
   const selfEvalFor = (a: AppraisalResponse) =>
     selfEvals.find(e => e.userId === a.employeeId && e.appraisalCycleId === a.cycleId) || null;
 
-  const pending = useMemo(
-    () => appraisals.filter(a => {
-      const r = reviewFor(a.id);
-      return !r || r.status === 'DRAFT';
-    }),
-    [appraisals, reviews]
-  );
-
-  const completed = useMemo(
-    () => appraisals.filter(a => {
-      const r = reviewFor(a.id);
-      return !!r && (r.status === 'SUBMITTED' || r.status === 'APPROVED');
-    }),
-    [appraisals, reviews]
-  );
-
-  const targetReview = target ? reviewFor(target.id) : null;
-  const targetSelfEval = target ? selfEvalFor(target) : null;
-  const isLocked = targetReview ? targetReview.status !== 'DRAFT' : false;
+  const isLocked = target ? REVIEWED_STATUSES.includes(target.status) : false;
 
   const openModal = (a: AppraisalResponse) => {
-    const r = reviewFor(a.id);
+    const existing = reviewFor(a.id);
     setTarget(a);
-    setManagerRating(r?.performanceRating ?? 0);
-    setComments(r?.comments ?? '');
-    setStrengths(r?.strengths ?? '');
-    setImprovements(r?.improvements ?? '');
-    setFormError(null);
+    setRating(existing?.performanceRating ?? 0);
+    setComments(existing?.comments ?? '');
+    setStrengths(existing?.strengths ?? '');
+    setImprovements(existing?.improvements ?? '');
+    setReviewError(null);
   };
 
-  const closeModal = () => { setTarget(null); setFormError(null); };
+  const closeModal = () => { setTarget(null); setReviewError(null); };
 
-  const handleSave = async (submit: boolean) => {
+  async function handleSave(submit: boolean) {
     if (!target || !user) return;
-    if (isLocked) return;
-    setFormError(null);
+    setReviewError(null);
 
-    if (submit && managerRating < 1) {
-      setFormError('Please select a rating before submitting.');
+    if (submit && rating < 1) {
+      setReviewError('Please select a rating before submitting.');
       return;
     }
 
-    setSaving(true);
+    setIsSaving(true);
     try {
+      const existing = reviewFor(target.id);
       const payload = {
         appraisalId: target.id,
         employeeId: target.employeeId,
         managerId: user.id,
-        performanceRating: managerRating || 1,
+        performanceRating: rating || 1,
         comments: comments.trim(),
         strengths: strengths.trim() || undefined,
         improvements: improvements.trim() || undefined,
         status: submit ? 'SUBMITTED' : 'DRAFT',
       };
 
-      const existing = reviewFor(target.id);
       if (existing) await updateReview(existing.id, payload);
       else await createReview(payload);
 
+      if (submit) {
+        await updateAppraisalStatus(target.id, 'REVIEWED');
+      }
+
       closeModal();
-      await load();
+      load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not save this review. Please try again.');
+      setReviewError(err instanceof Error ? err.message : 'Could not save this review. Please try again.');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
-  };
+  }
 
   if (loading) return <Spinner />;
+
+  const targetSelfEval = target ? selfEvalFor(target) : null;
 
   return (
     <div className="max-w-5xl space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Reviews</h1>
+        <h1 className="text-xl font-bold text-gray-900">Pending Reviews</h1>
         <p className="text-sm text-gray-500 mt-1">Team appraisals waiting on your review, across every cycle</p>
       </div>
 
-      {/* Pending Review */}
+      {/* Pending */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-800 flex items-center">
+        <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
           Pending Review
-          {pending.length > 0 && (
-            <span className="ml-2 rounded-full bg-[#0E4CB7] px-2 py-0.5 text-xs text-white">{pending.length}</span>
+          {pendingReview.length > 0 && (
+            <span className="rounded-full bg-[#0E4CB7] px-2 py-0.5 text-xs text-white">{pendingReview.length}</span>
           )}
         </h2>
         <div className="card p-0 overflow-hidden">
-          {pending.length === 0 ? (
+          {pendingReview.length === 0 ? (
             <EmptyState message="Nothing waiting on your review right now." icon="✅" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr>
-                    <th className="table-header">Employee</th>
-                    <th className="table-header">Cycle</th>
-                    <th className="table-header">Status</th>
-                    <th className="table-header">Self Rating</th>
-                    <th className="table-header">Actions</th>
-                  </tr>
-                </thead>
+              <table className="w-full">
+                <thead><tr>
+                  <th className="table-header">Employee</th>
+                  <th className="table-header hidden sm:table-cell">Cycle</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header hidden md:table-cell">Self Evaluation</th>
+                  <th className="table-header">Actions</th>
+                </tr></thead>
                 <tbody>
-                  {pending.map(a => {
-                    const r = reviewFor(a.id);
-                    return (
-                      <tr key={a.id} className="hover:bg-[#F4F8FF] transition-colors">
-                        <td className="table-cell font-medium text-gray-800">{a.employeeName}</td>
-                        <td className="table-cell">{a.cycleName}</td>
-                        <td className="table-cell"><StatusBadge status={a.status} /></td>
-                        <td className="table-cell"><RatingStars value={a.selfRating} showValue size={16} /></td>
-                        <td className="table-cell">
-                          <button onClick={() => openModal(a)} className="btn-primary !px-3 !py-1.5 text-xs">
-                            {r?.status === 'DRAFT' ? 'Continue Review' : 'Review'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {pendingReview.map(a => (
+                    <tr key={a.id} className="hover:bg-[#F4F8FF] transition-colors">
+                      <td className="table-cell font-medium">{a.employeeName}</td>
+                      <td className="table-cell hidden sm:table-cell text-gray-500">{a.cycleName}</td>
+                      <td className="table-cell"><StatusBadge status={a.status} /></td>
+                      <td className="table-cell hidden md:table-cell">
+                        {selfEvalFor(a) ? (
+                          <span className="badge bg-green-100 text-green-700">Submitted</span>
+                        ) : (
+                          <span className="badge bg-gray-100 text-gray-500">Not submitted</span>
+                        )}
+                      </td>
+                      <td className="table-cell">
+                        <button onClick={() => openModal(a)} className="btn-primary !px-3 !py-1.5 text-xs">
+                          {reviewFor(a.id) ? 'Continue Review' : 'Review'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -169,47 +179,39 @@ export const PendingReviewsPage = () => {
         </div>
       </div>
 
-      {/* Review History */}
+      {/* History */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-gray-800">Review History</h2>
         <div className="card p-0 overflow-hidden">
-          {completed.length === 0 ? (
+          {completedReview.length === 0 ? (
             <EmptyState message="No completed reviews yet." icon="📋" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr>
-                    <th className="table-header">Employee</th>
-                    <th className="table-header">Cycle</th>
-                    <th className="table-header">Status</th>
-                    <th className="table-header">Self Rating</th>
-                    <th className="table-header">My Rating</th>
-                    <th className="table-header">Comments</th>
-                    <th className="table-header">Actions</th>
-                  </tr>
-                </thead>
+              <table className="w-full">
+                <thead><tr>
+                  <th className="table-header">Employee</th>
+                  <th className="table-header hidden sm:table-cell">Cycle</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header hidden md:table-cell">My Rating</th>
+                  <th className="table-header hidden lg:table-cell">Comments</th>
+                  <th className="table-header">Actions</th>
+                </tr></thead>
                 <tbody>
-                  {completed.map(a => {
-                    const r = reviewFor(a.id);
+                  {completedReview.map(a => {
+                    const rev = reviewFor(a.id);
                     return (
                       <tr key={a.id} className="hover:bg-[#F4F8FF] transition-colors">
-                        <td className="table-cell font-medium text-gray-800">{a.employeeName}</td>
-                        <td className="table-cell">{a.cycleName}</td>
+                        <td className="table-cell font-medium">{a.employeeName}</td>
+                        <td className="table-cell hidden sm:table-cell text-gray-500">{a.cycleName}</td>
                         <td className="table-cell"><StatusBadge status={a.status} /></td>
-                        <td className="table-cell"><RatingStars value={a.selfRating} showValue size={16} /></td>
-                        <td className="table-cell"><RatingStars value={r?.performanceRating} showValue size={16} /></td>
-                        <td className="table-cell max-w-xs">
-                          {r?.comments ? (
-                            <p className="truncate text-gray-500" title={r.comments}>{r.comments}</p>
-                          ) : (
-                            <span className="text-xs text-gray-400">—</span>
-                          )}
+                        <td className="table-cell hidden md:table-cell"><StarRating value={rev?.performanceRating} /></td>
+                        <td className="table-cell hidden lg:table-cell max-w-xs">
+                          {rev?.comments ? (
+                            <p className="truncate text-gray-500" title={rev.comments}>{rev.comments}</p>
+                          ) : <span className="text-xs text-gray-400">—</span>}
                         </td>
                         <td className="table-cell">
-                          <button onClick={() => openModal(a)} className="btn-secondary !px-3 !py-1.5 text-xs">
-                            View
-                          </button>
+                          <button onClick={() => openModal(a)} className="btn-secondary !px-3 !py-1.5 text-xs">View</button>
                         </td>
                       </tr>
                     );
@@ -222,133 +224,86 @@ export const PendingReviewsPage = () => {
       </div>
 
       {/* Review Modal */}
-      {target && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl border border-[#D6E4FF]">
-            <div className="flex items-start justify-between px-6 pt-6">
+      <Modal
+        isOpen={!!target}
+        onClose={closeModal}
+        title="Review Appraisal"
+        description={target ? `${target.employeeName} · ${target.cycleName}` : undefined}
+      >
+        <div className="space-y-4">
+          {targetSelfEval && (
+            <>
               <div>
-                <h3 className="font-semibold text-gray-800">Review Appraisal</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{target.employeeName} — {target.cycleName}</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Achievements</p>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{targetSelfEval.achievements}</p>
               </div>
-              <button onClick={closeModal}><X size={18} className="text-gray-400 hover:text-gray-600" /></button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="rounded-xl border border-[#D6E4FF] bg-[#F4F8FF] px-4 py-3">
-                <p className="text-xs font-medium text-[#0E4CB7] mb-1">Self rating</p>
-                <RatingStars value={target.selfRating} showValue size={18} />
-              </div>
-
-              {targetSelfEval?.achievements && (
+              {targetSelfEval.challenges && (
                 <div>
-                  <p className="label mb-1">Achievements</p>
-                  <p className="text-sm text-gray-600">{targetSelfEval.achievements}</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Challenges</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{targetSelfEval.challenges}</p>
                 </div>
               )}
-              {targetSelfEval?.challenges && (
+              {targetSelfEval.comments && (
                 <div>
-                  <p className="label mb-1">Challenges</p>
-                  <p className="text-sm text-gray-600">{targetSelfEval.challenges}</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Employee Comments</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{targetSelfEval.comments}</p>
                 </div>
               )}
-              {targetSelfEval?.comments && (
-                <div>
-                  <p className="label mb-1">Employee Comments</p>
-                  <p className="text-sm text-gray-600">{targetSelfEval.comments}</p>
-                </div>
-              )}
+            </>
+          )}
 
-              <div>
-                <label className="label">Your Rating {!isLocked && <span className="text-red-400">*</span>}</label>
-                <RatingStars value={managerRating} editable={!isLocked} onChange={setManagerRating} showValue size={22} />
-              </div>
+          {!targetSelfEval && (
+            <p className="text-xs text-gray-400 flex items-center gap-1.5">
+              <AlertCircle size={14} /> This employee hasn't submitted a self evaluation for this cycle yet.
+            </p>
+          )}
 
-              <div>
-                <label className="label">Comments</label>
-                <textarea
-                  value={comments}
-                  onChange={e => setComments(e.target.value)}
-                  disabled={isLocked}
-                  rows={3}
-                  placeholder="Your feedback on this employee's performance..."
-                  className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Strengths</label>
-                  <textarea
-                    value={strengths}
-                    onChange={e => setStrengths(e.target.value)}
-                    disabled={isLocked}
-                    rows={2}
-                    placeholder="Key strengths..."
-                    className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="label">Improvements</label>
-                  <textarea
-                    value={improvements}
-                    onChange={e => setImprovements(e.target.value)}
-                    disabled={isLocked}
-                    rows={2}
-                    placeholder="Areas to improve..."
-                    className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-              </div>
-
-              {formError && (
-                <div className="flex items-start gap-2 text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">
-                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              {isLocked && (
-                <div className="flex items-start gap-2 text-sm px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200">
-                  <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
-                  <span>This review has already been submitted and can no longer be edited.</span>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-2">
-
-                <button
-                  onClick={closeModal}
-                  className="btn-secondary"
-                >
-                  {isLocked ? "Close" : "Cancel"}
+          <div>
+            <label className="label">Your Rating <span className="text-red-400">*</span></label>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(v => (
+                <button key={v} type="button" disabled={isLocked} onClick={() => setRating(v)} aria-label={`Rate ${v} out of 5`} className="disabled:cursor-not-allowed">
+                  <Star size={24} className={v <= rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
                 </button>
-
-                {!isLocked && (
-                  <>
-                    <button
-                      onClick={() => handleSave(false)}
-                      disabled={saving}
-                      className="btn-secondary"
-                    >
-                      {saving ? "Saving..." : "Save Draft"}
-                    </button>
-
-                    <button
-                      onClick={() => handleSave(true)}
-                      disabled={saving}
-                      className="btn-primary"
-                    >
-                      {saving ? "Submitting..." : "Submit Review"}
-                    </button>
-                  </>
-                )}
-
-              </div>                
+              ))}
             </div>
           </div>
+
+          <div>
+            <label className="label">Comments</label>
+            <textarea value={comments} onChange={e => setComments(e.target.value)} disabled={isLocked} rows={3}
+              placeholder="Your overall feedback on this employee's performance..."
+              className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Strengths</label>
+              <textarea value={strengths} onChange={e => setStrengths(e.target.value)} disabled={isLocked} rows={2}
+                placeholder="Key strengths..." className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+            </div>
+            <div>
+              <label className="label">Improvements</label>
+              <textarea value={improvements} onChange={e => setImprovements(e.target.value)} disabled={isLocked} rows={2}
+                placeholder="Areas to improve..." className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-500" />
+            </div>
+          </div>
+
+          {reviewError && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 border border-red-200">{reviewError}</p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={closeModal} className="btn-secondary">Cancel</button>
+            <button onClick={() => handleSave(false)} disabled={isSaving || isLocked} className="btn-secondary disabled:opacity-50">
+              {isLocked ? 'Submitted' : isSaving ? 'Saving...' : 'Save Draft'}
+            </button>
+            <button onClick={() => handleSave(true)} disabled={isSaving || isLocked} className="btn-primary">
+              {isLocked ? 'Submitted' : isSaving ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </div>
         </div>
-        
-  )
-}
-</div>
-  )};
+      </Modal>
+    </div>
+  );
+};

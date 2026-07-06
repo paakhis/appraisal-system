@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllUsers } from '../../api/userApi';
 import { getAllGoals } from '../../api/goalApi';
 import { getAllReviews } from '../../api/reviewApi';
+import { downloadEmployeesReport } from '../../api/reportApi';
 // import { getAllAppraisals } from '../../api/appraisalApi';
 import { Spinner } from '../../components/common/Spinner';
 import type { UserResponse } from '../../interfaces/user';
@@ -13,6 +15,7 @@ export const TeamReportsPage = () => {
     const { user } = useAuth();
 
     const [loading, setLoading] = useState(true);
+    const [downloading, setDownloading] = useState(false);
 
     const [teamSize, setTeamSize] = useState(0);
     const [APPROVEDGoals, setAPPROVEDGoals] = useState(0);
@@ -85,19 +88,41 @@ export const TeamReportsPage = () => {
         void load();
     }, [user]);
 
+    const handleDownloadReport = async () => {
+        setDownloading(true);
+        try {
+            await downloadEmployeesReport();
+        } catch (error) {
+            console.error('Failed to download report', error);
+        } finally {
+            setDownloading(false);
+        }
+    };
+
     if (loading) return <Spinner />;
 
     return (
         <div className="space-y-6">
 
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                    Team Reports
-                </h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                        Team Reports
+                    </h1>
 
-                <p className="text-sm text-gray-500">
-                    Overview of your team's performance
-                </p>
+                    <p className="text-sm text-gray-500">
+                        Overview of your team's performance
+                    </p>
+                </div>
+
+                <button
+                    onClick={handleDownloadReport}
+                    disabled={downloading}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#D6E4FF] bg-white px-4 py-2 text-sm font-medium text-[#0E4CB7] transition hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    <Download size={16} />
+                    {downloading ? 'Preparing...' : 'Download Excel'}
+                </button>
             </div>
 
             {/* Stats */}

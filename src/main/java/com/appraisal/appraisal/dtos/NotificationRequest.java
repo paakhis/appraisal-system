@@ -23,4 +23,5 @@ public class NotificationRequest {
 
     @NotBlank(message = "Functional Notification type grouping identifier is required")
     private String type; // Handled case-insensitively in the implementation layer
+
 }

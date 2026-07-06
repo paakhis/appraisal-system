@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { getAllUsers } from '../../api/userApi';
 import { getAllAppraisals } from '../../api/appraisalApi';
 import { getAllGoals } from '../../api/goalApi';
 import { getAllReviews } from '../../api/reviewApi';
 import { getAllDepartments } from '../../api/departmentApi';
+import { downloadEmployeesReport } from '../../api/reportApi';
 import { Spinner } from '../../components/common/Spinner';
 import { StatusBadge } from '../../components/common/Badge';
 
@@ -20,6 +22,7 @@ interface ReportData {
 export const ReportsPage = () => {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     Promise.all([getAllUsers(), getAllAppraisals(), getAllGoals(), getAllReviews(), getAllDepartments()])
@@ -43,6 +46,17 @@ export const ReportsPage = () => {
       }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      await downloadEmployeesReport();
+    } catch (error) {
+      console.error('Failed to download report', error);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) return <Spinner />;
 
   if (!data) return (
@@ -56,7 +70,17 @@ export const ReportsPage = () => {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
+        <button
+          onClick={handleDownloadReport}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 rounded-lg border border-[#D6E4FF] bg-white px-4 py-2 text-sm font-medium text-[#0E4CB7] transition hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Download size={16} />
+          {downloading ? 'Preparing...' : 'Download Excel'}
+        </button>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

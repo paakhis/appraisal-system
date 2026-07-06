@@ -1,5 +1,6 @@
 package com.appraisal.appraisal.controller;
 
+import com.appraisal.appraisal.dtos.BulkUserUploadResult;
 import com.appraisal.appraisal.dtos.UserRequest;
 import com.appraisal.appraisal.dtos.UserResponse;
 import com.appraisal.appraisal.service.UserService;
@@ -21,6 +22,12 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(userService.createUser(request));
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<BulkUserUploadResult> createUsersBulk(@RequestBody List<UserRequest> requests) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(userService.createUsersBulk(requests));
     }
 
     @GetMapping
